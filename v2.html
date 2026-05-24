@@ -802,13 +802,13 @@ function renderExCard(idx, nc) {
   })() : '';
   const goalHtml = `<div class="goal-row">
     <span style="font-size:10px;color:var(--tl);flex-shrink:0">Nächstes Mal:</span>
-    <button class="goal-btn${kg==='up'?' gon':''}" onclick="setGoal(${idx},'kg','up')">↑ kg</button>
-    <button class="goal-btn${kg==='same'?' gon':''}" onclick="setGoal(${idx},'kg','same')">=</button>
-    <button class="goal-btn${kg==='down'?' gon':''}" onclick="setGoal(${idx},'kg','down')">↓ kg</button>
+    <button class="goal-btn${kg==='up'?' gon':''}" data-field="kg" data-val="up" onclick="setGoal(${idx},'kg','up')">↑ kg</button>
+    <button class="goal-btn${kg==='same'?' gon':''}" data-field="kg" data-val="same" onclick="setGoal(${idx},'kg','same')">=</button>
+    <button class="goal-btn${kg==='down'?' gon':''}" data-field="kg" data-val="down" onclick="setGoal(${idx},'kg','down')">↓ kg</button>
     <span style="color:var(--border)">|</span>
-    <button class="goal-btn${rp==='up'?' gon':''}" onclick="setGoal(${idx},'reps','up')">↑ Wdh</button>
-    <button class="goal-btn${rp==='same'?' gon':''}" onclick="setGoal(${idx},'reps','same')">=</button>
-    <button class="goal-btn${rp==='down'?' gon':''}" onclick="setGoal(${idx},'reps','down')">↓ Wdh</button>
+    <button class="goal-btn${rp==='up'?' gon':''}" data-field="reps" data-val="up" onclick="setGoal(${idx},'reps','up')">↑ Wdh</button>
+    <button class="goal-btn${rp==='same'?' gon':''}" data-field="reps" data-val="same" onclick="setGoal(${idx},'reps','same')">=</button>
+    <button class="goal-btn${rp==='down'?' gon':''}" data-field="reps" data-val="down" onclick="setGoal(${idx},'reps','down')">↓ Wdh</button>
   </div>`;
   const cueList = CUES[ex.name];
   const cueHtml = cueList ? `<div class="cue-section">
@@ -819,7 +819,6 @@ function renderExCard(idx, nc) {
   </div>` : '';
   return `<div class="exc" id="ec-${idx}">
     <div class="exc-hdr">
-      <button class="opt-box${ex.opt?' on':''}" onclick="togOpt(${idx})" title="${ex.opt?'Optional (tippen zum deaktivieren)':'Als optional markieren'}">✓</button>
       <div class="enum ${numCls}">${idx+1}</div>
       <div class="ename" id="en-${idx}">${ex.name}</div>
       <div class="exc-btns">
@@ -895,6 +894,18 @@ function togOpt(ei) {
   reRenderEx(ei);
 }
 
+function setGoal(ei, field, val) {
+  if (!session.exercises[ei].nextGoal) session.exercises[ei].nextGoal = {};
+  const cur = session.exercises[ei].nextGoal[field];
+  session.exercises[ei].nextGoal[field] = cur === val ? null : val;
+  saveActive();
+  const card = document.getElementById('ec-'+ei);
+  if (!card) return;
+  card.querySelectorAll('.goal-btn[data-field]').forEach(btn => {
+    btn.classList.toggle('gon', session.exercises[ei].nextGoal[btn.dataset.field] === btn.dataset.val);
+  });
+}
+
 // REPLACE
 function openReplace(idx) {
   replaceIdx=idx;
@@ -953,12 +964,11 @@ function getAllExerciseGroups() {
 
 function openAddEx() {
   exLibExpanded.clear();
+  const inp = document.getElementById('exlib-search');
+  if (inp) inp.value = '';
   openModal('modal-exlib');
   renderExLib('');
-  setTimeout(() => {
-    const inp = document.getElementById('exlib-search');
-    if (inp) inp.focus();
-  }, 100);
+  setTimeout(() => { if (inp) inp.focus(); }, 100);
 }
 function openNewEx() {
   document.getElementById('addex-name').value='';
