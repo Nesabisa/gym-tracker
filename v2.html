@@ -124,6 +124,12 @@ body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--text);min
 .add-ex-btn{font-size:13px;color:var(--tm);background:var(--white);border:1.5px dashed var(--border);border-radius:12px;padding:10px 20px;cursor:pointer;font-family:'Jost',sans-serif;transition:all .18s;}
 .add-ex-btn:hover{border-color:var(--sage);color:var(--sd);}
 
+.goal-btn{font-size:10px;padding:3px 8px;border:1.5px solid var(--border);border-radius:7px;background:none;color:var(--tl);cursor:pointer;font-family:'Jost',sans-serif;white-space:nowrap;transition:all .15s;}
+.goal-btn.gon{background:var(--sl);border-color:var(--sage);color:var(--sd);}
+.goal-row{padding:7px 13px;border-top:1px solid var(--border);display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.opt-box{width:24px;height:24px;border-radius:6px;border:1.5px solid var(--border);background:var(--cream);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;flex-shrink:0;transition:all .18s;color:transparent;padding:0;line-height:1;}
+.opt-box.on{background:#d4edda;border-color:#6a9960;color:#6a9960;}
+
 /* DETAIL */
 .detail-meta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
 .dmeta-chip{background:var(--white);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:12px;color:var(--tm);}
@@ -328,7 +334,8 @@ body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--text);min
     <div class="m-handle"></div>
     <div class="m-title">Übung hinzufügen</div>
     <div class="m-label">Name</div>
-    <input type="text" class="m-inp" id="addex-name" placeholder="Übungsname...">
+    <input type="text" class="m-inp" id="addex-name" placeholder="Übungsname..." list="exnames-dl" oninput="onAddExName(this.value)" autocomplete="off">
+    <datalist id="exnames-dl"></datalist>
     <div class="m-row">
       <div>
         <div class="m-label">Sätze</div>
@@ -494,6 +501,7 @@ let pauseTotal = 0, pauseLeft = 0;
 let replaceIdx = null;
 let editMode = false;
 let editSessionId = null;
+let exLibExpanded = new Set();
 
 function saveDB() { try { localStorage.setItem('gymtracker', JSON.stringify(db)); } catch(e) {} }
 function saveActive() { try { if(session) localStorage.setItem('gymtracker_active', JSON.stringify(session)); else localStorage.removeItem('gymtracker_active'); } catch(e) {} }
@@ -721,6 +729,14 @@ function startSession() {
       });
     });
   });
+  const lastGoals = (() => {
+    const prev = (db.sessions||[]).filter(s=>s.day===chosenDay && (s.gym||'evo')===chosenGym);
+    if (!prev.length) return {};
+    const g = {};
+    prev[prev.length-1].exercises.forEach(ex => { if(ex.nextGoal) g[ex.name] = ex.nextGoal; });
+    return g;
+  })();
+  exercises.forEach(ex => { ex.lastGoal = lastGoals[ex.name] || null; });
   session = {id:Date.now().toString(), date, day:chosenDay, gym:chosenGym, startTime:Date.now(), exercises};
   renderActive();
   show('active');
@@ -758,21 +774,42 @@ function renderActive() {
 
 function renderExCard(idx, nc) {
   const ex = session.exercises[idx];
-  const numCls = ex.opt ? 'no' : 'n'+nc;
-  const numLbl = ex.opt ? 'opt' : (idx+1);
+  const numCls = 'n'+nc;
   const hint = ex.lastW !== undefined
     ? `<div class="last-hint">↑ Letzte Session: <span>${ex.lastW}kg</span></div>` : '';
   const rows = ex.sets.map((s,si)=>`
     <div class="set-row" id="sr-${idx}-${si}">
       <span class="snr">${si+1}</span>
       <input class="sinp${s.done?' faded':''}" type="number" step="0.5"
-        value="${s.weight||''}" placeholder="kg" onchange="updSet(${idx},${si},'weight',this.value)">
-      <span class="sx">×</span>
+        value="${s.weight||''}" placeholder="0" onchange="updSet(${idx},${si},'weight',this.value)">
+      <span class="sx">kg ×</span>
       <input class="sinp${s.done?' faded':''}" type="number"
-        value="${s.reps||''}" placeholder="reps" onchange="updSet(${idx},${si},'reps',this.value)">
+        value="${s.reps||''}" placeholder="Wdh" onchange="updSet(${idx},${si},'reps',this.value)">
       <button class="done-btn${s.done?' done':''}" onclick="togDone(${idx},${si})">${s.done?'✓':'○'}</button>
       <button class="del-set" onclick="delSet(${idx},${si})" title="Satz löschen">✕</button>
     </div>`).join('');
+  const kg = ex.nextGoal?.kg || null;
+  const rp = ex.nextGoal?.reps || null;
+  const lastGoalHint = (!kg && !rp && ex.lastGoal) ? (() => {
+    const parts = [];
+    if(ex.lastGoal.kg==='up') parts.push('↑ kg');
+    if(ex.lastGoal.kg==='down') parts.push('↓ kg');
+    if(ex.lastGoal.kg==='same') parts.push('= kg');
+    if(ex.lastGoal.reps==='up') parts.push('↑ Wdh');
+    if(ex.lastGoal.reps==='down') parts.push('↓ Wdh');
+    if(ex.lastGoal.reps==='same') parts.push('= Wdh');
+    return parts.length ? `<div style="padding:4px 13px 0;font-size:10px;color:var(--sd)">Letztes Ziel: ${parts.join(' · ')}</div>` : '';
+  })() : '';
+  const goalHtml = `<div class="goal-row">
+    <span style="font-size:10px;color:var(--tl);flex-shrink:0">Nächstes Mal:</span>
+    <button class="goal-btn${kg==='up'?' gon':''}" onclick="setGoal(${idx},'kg','up')">↑ kg</button>
+    <button class="goal-btn${kg==='same'?' gon':''}" onclick="setGoal(${idx},'kg','same')">=</button>
+    <button class="goal-btn${kg==='down'?' gon':''}" onclick="setGoal(${idx},'kg','down')">↓ kg</button>
+    <span style="color:var(--border)">|</span>
+    <button class="goal-btn${rp==='up'?' gon':''}" onclick="setGoal(${idx},'reps','up')">↑ Wdh</button>
+    <button class="goal-btn${rp==='same'?' gon':''}" onclick="setGoal(${idx},'reps','same')">=</button>
+    <button class="goal-btn${rp==='down'?' gon':''}" onclick="setGoal(${idx},'reps','down')">↓ Wdh</button>
+  </div>`;
   const cueList = CUES[ex.name];
   const cueHtml = cueList ? `<div class="cue-section">
     <button class="cue-toggle" onclick="togCues(${idx})">💡 Tipps</button>
@@ -782,17 +819,19 @@ function renderExCard(idx, nc) {
   </div>` : '';
   return `<div class="exc" id="ec-${idx}">
     <div class="exc-hdr">
-      <div class="enum ${numCls}">${numLbl}</div>
-      <div class="ename${ex.opt?' opt':''}" id="en-${idx}">${ex.name}</div>
+      <button class="opt-box${ex.opt?' on':''}" onclick="togOpt(${idx})" title="${ex.opt?'Optional (tippen zum deaktivieren)':'Als optional markieren'}">✓</button>
+      <div class="enum ${numCls}">${idx+1}</div>
+      <div class="ename" id="en-${idx}">${ex.name}</div>
       <div class="exc-btns">
-        <button class="ic-btn" onclick="editRestInline(${idx})" title="Pause" style="font-size:10px;width:auto;padding:0 5px;">${ex.rest||60}s</button>
-        <button class="ic-btn${ex.opt?' nav-active':''}" onclick="togOpt(${idx})" title="${ex.opt?'Pflichtübung':'Optional'}" style="font-size:10px;width:auto;padding:0 5px;">${ex.opt?'opt':'—'}</button>
+        <button class="ic-btn" onclick="editRestInline(${idx})" title="Pause" style="font-size:10px;width:auto;padding:0 6px;">${ex.rest||60}s</button>
         <button class="ic-btn" onclick="openReplace(${idx})" title="Ersetzen">✎</button>
         <button class="ic-btn del" onclick="delEx(${idx})" title="Löschen">🗑</button>
       </div>
     </div>
     ${hint}
     <div class="exc-sets">${rows}<button class="add-set-btn" onclick="addSet(${idx})">+ Satz</button></div>
+    ${lastGoalHint}
+    ${goalHtml}
     ${cueHtml}
   </div>`;
 }
@@ -873,86 +912,47 @@ function saveReplace() {
 }
 
 // ADD EXERCISE
-function getAllExercises() {
-  const entries = [];
-  const planMap = {}; // name -> plan defaults
-
-  // Collect plan defaults
+function getAllExerciseGroups() {
+  const planMap = {};
   Object.entries(PLANS).forEach(([day, plan]) => {
     plan.sections.forEach(sec => {
       sec.exs.forEach(ex => {
-        if (!planMap[ex.name]) {
-          planMap[ex.name] = {id: ex.id, name: ex.name, s: ex.s, r: ex.r, w: ex.w, rest: ex.rest};
-        }
+        if (!planMap[ex.name]) planMap[ex.name] = {id: ex.id, s: ex.s, r: ex.r, w: ex.w, rest: ex.rest};
       });
     });
   });
-
-  // Add custom exercises
   (db.customExercises||[]).forEach(ex => {
-    if (!planMap[ex.name]) {
-      planMap[ex.name] = {id: ex.id, name: ex.name, s: ex.s || 3, r: ex.r || 10, w: ex.w || 0, rest: ex.rest || 60};
-    }
+    if (!planMap[ex.name]) planMap[ex.name] = {id: ex.id, s: ex.s||3, r: ex.r||10, w: ex.w||0, rest: ex.rest||60};
   });
 
-  // Build gym history: name -> { gymId -> {w, r, s, rest} } using LATEST session data per gym
   const history = {};
   (db.sessions||[]).forEach(s => {
     s.exercises.forEach(ex => {
       const valid = ex.sets.filter(x => x.weight > 0 && x.reps > 0);
       if (!valid.length) return;
       const maxW = Math.max(...valid.map(x => x.weight));
-      const avgR = Math.round(valid.reduce((a,x)=>a+x.reps,0)/valid.length);
-      const numS = valid.length;
+      const avgR = Math.round(valid.reduce((a,x) => a+x.reps, 0) / valid.length);
       if (!history[ex.name]) history[ex.name] = {};
-      // Always overwrite — sessions are in chronological order so last write = latest
-      history[ex.name][s.gym] = {w: maxW, r: avgR, s: numS, rest: ex.rest||60};
+      history[ex.name][s.gym] = {w: maxW, r: avgR, s: valid.length, rest: ex.rest||60};
     });
   });
 
-  const seen = new Set();
-
-  // For each known exercise (plan or custom), add Plan entry + gym-history entries
   const allNames = new Set([...Object.keys(planMap), ...Object.keys(history)]);
-  [...allNames].sort().forEach(name => {
-    seen.add(name);
+  return [...allNames].sort().map(name => {
     const plan = planMap[name];
-
-    // Plan entry (always show if it's in plan/custom)
-    if (plan) {
-      entries.push({
-        key: name+'|plan',
-        id: plan.id,
-        name,
-        s: plan.s, r: plan.r, w: plan.w, rest: plan.rest,
-        gym: null,
-        source: 'plan'
-      });
-    }
-
-    // Gym-history entries
+    const variants = [];
+    if (plan) variants.push({gym: null, s: plan.s, r: plan.r, w: plan.w, rest: plan.rest, source: 'plan'});
     if (history[name]) {
       Object.entries(history[name]).forEach(([gymId, data]) => {
-        entries.push({
-          key: name+'|'+gymId,
-          id: (plan?.id||'custom')+'-'+gymId,
-          name,
-          s: data.s, r: data.r, w: data.w, rest: data.rest,
-          gym: gymId,
-          source: 'history'
-        });
+        variants.push({gym: gymId, s: data.s, r: data.r, w: data.w, rest: data.rest, source: 'history'});
       });
     }
-
-    // If no plan entry but has history, already added above
-    if (!plan && history[name]) {
-      // already handled — gym entries added above
-    }
+    return {name, variants};
   });
-
-  return entries;
 }
+
 function openAddEx() {
+  exLibExpanded.clear();
   openModal('modal-exlib');
   renderExLib('');
   setTimeout(() => {
@@ -966,38 +966,56 @@ function openNewEx() {
   setTimeout(()=>document.getElementById('addex-name').focus(),100);
 }
 function renderExLib(query) {
-  const all = getAllExercises();
+  const groups = getAllExerciseGroups();
   const q = (query||'').toLowerCase().trim();
-  const filtered = q ? all.filter(e => e.name.toLowerCase().includes(q)) : all;
+  const filtered = q ? groups.filter(g => g.name.toLowerCase().includes(q)) : groups;
   const list = document.getElementById('exlib-list');
   if (!list) return;
   if (!filtered.length) {
     list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--tl);font-size:13px">Keine Übungen gefunden</div>';
     return;
   }
-  list.innerHTML = filtered.map(ex => {
-    // Gym pill
-    let gymPill;
-    if (ex.gym) {
-      const info = gymInfo(ex.gym);
-      gymPill = `<span class="gym-pill ${info.cls}">${info.icon} ${info.label}</span>`;
-    } else {
-      gymPill = `<span style="font-size:9px;padding:2px 6px;border-radius:5px;background:var(--cream);color:var(--tl);font-weight:600;letter-spacing:.3px">Plan</span>`;
+  list.innerHTML = filtered.map(group => {
+    const isExp = exLibExpanded.has(group.name);
+    const gymCount = group.variants.filter(v => v.gym).length;
+    const safeName = group.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+
+    let variantsHtml = '';
+    if (isExp) {
+      variantsHtml = '<div style="padding:0 8px 8px;display:flex;flex-direction:column;gap:4px">' +
+        group.variants.map(v => {
+          let pill;
+          if (v.gym) {
+            const inf = gymInfo(v.gym);
+            pill = `<span class="gym-pill ${inf.cls}" style="margin-left:0">${inf.icon} ${inf.label}</span>`;
+          } else {
+            pill = `<span style="font-size:9px;padding:2px 6px;border-radius:5px;background:var(--cream);color:var(--tl);font-weight:600;letter-spacing:.3px">Plan</span>`;
+          }
+          const meta = `${v.s}×${v.r}${v.w ? ' · '+v.w+'kg' : ''}`;
+          return `<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 11px;background:var(--cream);border-radius:10px;cursor:pointer;gap:8px" onclick="addFromLibrary(null,'${safeName}',${v.s},${v.r},${v.w||0},${v.rest||60})">
+            <div style="display:flex;align-items:center;gap:7px">${pill}<span style="font-size:12px;color:var(--tm)">${meta}</span></div>
+            <span style="font-size:16px;color:var(--rd);font-weight:300">+</span>
+          </div>`;
+        }).join('') + '</div>';
     }
 
-    // Weight/reps info
-    const meta = `${ex.s}×${ex.r}${ex.w ? ' · '+ex.w+'kg' : ''}`;
-
-    return `<div class="det-ex" style="cursor:pointer;margin-bottom:6px;padding:10px 13px" onclick="addFromLibrary('${ex.id}','${ex.name.replace(/'/g,"\\'")}',${ex.s},${ex.r},${ex.w||0},${ex.rest||60})">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-        <div style="font-size:13px;font-weight:500;flex:1">${ex.name}</div>
+    return `<div class="det-ex" style="margin-bottom:6px;padding:0;overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 13px;cursor:pointer;gap:8px" onclick="toggleExLib('${safeName}')">
+        <div style="font-size:13px;font-weight:500;flex:1">${group.name}</div>
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-          <span style="font-size:11px;color:var(--tl)">${meta}</span>
-          ${gymPill}
+          ${gymCount ? `<span style="font-size:10px;color:var(--sd)">📊 ${gymCount}</span>` : ''}
+          <span style="color:var(--tl);font-size:18px;line-height:1">${isExp ? '⌄' : '›'}</span>
         </div>
       </div>
+      ${variantsHtml}
     </div>`;
   }).join('');
+}
+
+function toggleExLib(name) {
+  if (exLibExpanded.has(name)) exLibExpanded.delete(name);
+  else { exLibExpanded.clear(); exLibExpanded.add(name); }
+  renderExLib(document.getElementById('exlib-search')?.value||'');
 }
 function addFromLibrary(id, name, s, r, w, rest) {
   const newEx = {
@@ -1019,6 +1037,31 @@ function addFromLibrary(id, name, s, r, w, rest) {
     renderDetail();
   }
 }
+function onAddExName(val) {
+  const dl = document.getElementById('exnames-dl');
+  if (dl) {
+    const groups = getAllExerciseGroups();
+    const q = val.toLowerCase();
+    dl.innerHTML = groups
+      .filter(g => g.name.toLowerCase().includes(q))
+      .map(g => `<option value="${g.name.replace(/"/g,'&quot;')}">`)
+      .join('');
+  }
+  autoFillAddEx(val);
+}
+
+function autoFillAddEx(name) {
+  const groups = getAllExerciseGroups();
+  const match = groups.find(g => g.name.toLowerCase() === name.toLowerCase());
+  if (!match) return;
+  const src = match.variants.find(v => v.source==='history') || match.variants[0];
+  if (!src) return;
+  document.getElementById('addex-sets').value = src.s;
+  document.getElementById('addex-reps').value = src.r;
+  document.getElementById('addex-weight').value = src.w;
+  document.getElementById('addex-rest').value = src.rest;
+}
+
 function saveAddEx() {
   const name=document.getElementById('addex-name').value.trim();
   if(!name) return;
@@ -1040,11 +1083,14 @@ function saveAddEx() {
     closeModal('modal-exlib');
     renderDetail();
   }
-  if(!(db.customExercises||[]).find(x=>x.name===name)) {
-    if(!db.customExercises) db.customExercises=[];
+  if(!db.customExercises) db.customExercises = [];
+  const existIdx = db.customExercises.findIndex(x => x.name.toLowerCase() === name.toLowerCase());
+  if (existIdx >= 0) {
+    db.customExercises[existIdx] = {id: db.customExercises[existIdx].id, name, s, r, w, rest, gym: session?.gym || db.customExercises[existIdx].gym || 'any'};
+  } else {
     db.customExercises.push({id:'lib-'+Date.now(), name, s, r, w, rest, gym: session?.gym || 'any'});
-    saveDB();
   }
+  saveDB();
 }
 
 // SESSION TIMER
