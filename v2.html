@@ -526,6 +526,22 @@ function resumeSession() {
   renderActive();
   show('active');
   startSessTimer();
+  // Restore pause if it was running when app was closed
+  if (session.pauseEndTime) {
+    const remaining = Math.round((session.pauseEndTime - Date.now()) / 1000);
+    if (remaining > 0) {
+      pauseTotal = session.pauseTotal || remaining;
+      pauseLeft = remaining;
+      updPauseUI();
+      document.getElementById('pause-ov').classList.add('on');
+      pauseIv = setInterval(tickPause, 500);
+    } else {
+      // Pause already finished while closed — clean up silently
+      session.pauseEndTime = null;
+      session.pauseTotal = null;
+      saveActive();
+    }
+  }
 }
 function goStats() { renderStats(); show('stats'); }
 function goSetup() {
@@ -1116,21 +1132,50 @@ function startSessTimer() {
 // PAUSE TIMER
 function startPause(sec) {
   clearInterval(pauseIv);
-  pauseTotal=pauseLeft=sec;
+  pauseTotal = sec;
+  pauseLeft = sec;
+  if (session) {
+    session.pauseEndTime = Date.now() + sec * 1000;
+    session.pauseTotal = sec;
+    saveActive();
+  }
   updPauseUI();
   document.getElementById('pause-ov').classList.add('on');
-  pauseIv=setInterval(()=>{
-    pauseLeft--;
-    if(pauseLeft<=0){ skipPause(); if(navigator.vibrate) navigator.vibrate([200,100,200]); }
-    else updPauseUI();
-  },1000);
+  pauseIv = setInterval(tickPause, 500);
+}
+function tickPause() {
+  if (session && session.pauseEndTime) {
+    pauseLeft = Math.max(0, Math.round((session.pauseEndTime - Date.now()) / 1000));
+    pauseTotal = session.pauseTotal || pauseTotal;
+  } else {
+    pauseLeft = Math.max(0, pauseLeft - 1);
+  }
+  if (pauseLeft <= 0) {
+    skipPause();
+    if (navigator.vibrate) navigator.vibrate([200,100,200]);
+  } else {
+    updPauseUI();
+  }
 }
 function updPauseUI() {
-  document.getElementById('p-count').textContent=pauseLeft;
-  document.getElementById('p-bar').style.width=(pauseLeft/pauseTotal*100)+'%';
+  document.getElementById('p-count').textContent = pauseLeft;
+  document.getElementById('p-bar').style.width = (pauseTotal > 0 ? pauseLeft/pauseTotal*100 : 0)+'%';
 }
-function skipPause() { clearInterval(pauseIv); document.getElementById('pause-ov').classList.remove('on'); }
-function addPause() { pauseLeft+=30; pauseTotal+=30; updPauseUI(); }
+function skipPause() {
+  clearInterval(pauseIv);
+  document.getElementById('pause-ov').classList.remove('on');
+  if (session) { session.pauseEndTime = null; session.pauseTotal = null; saveActive(); }
+}
+function addPause() {
+  pauseLeft += 30;
+  pauseTotal += 30;
+  if (session && session.pauseEndTime) {
+    session.pauseEndTime += 30000;
+    session.pauseTotal = pauseTotal;
+    saveActive();
+  }
+  updPauseUI();
+}
 
 // FINISH
 function confirmFinish() {
