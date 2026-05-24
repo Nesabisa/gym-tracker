@@ -384,6 +384,18 @@ body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--text);min
   </div>
 </div>
 
+<!-- MODAL: IMPORT -->
+<div class="modal-ov" id="modal-import">
+  <div class="msheet">
+    <div class="m-handle"></div>
+    <div class="m-title">Daten importieren</div>
+    <p style="font-size:13px;color:var(--tl);margin-bottom:12px;">Kopierten Text aus der alten App hier einfügen:</p>
+    <textarea id="import-ta" style="width:100%;height:140px;border:1.5px solid var(--border);border-radius:13px;padding:12px;font-family:'Jost',sans-serif;font-size:11px;color:var(--text);background:var(--cream);resize:none;" placeholder="Hier einfügen..."></textarea>
+    <button class="m-save" onclick="doImport()">Importieren ✓</button>
+    <button class="m-cancel" onclick="closeModal('modal-import')">Abbrechen</button>
+  </div>
+</div>
+
 <!-- MODAL: EDIT DURATION -->
 <div class="modal-ov" id="modal-dur">
   <div class="msheet">
@@ -625,7 +637,7 @@ function renderStats() {
   const sessions = db.sessions||[];
   const cnt = document.getElementById('stats-content');
   if (!sessions.length) {
-    cnt.innerHTML = `<div class="stats-empty"><div class="big">📊</div><p>Noch keine Daten vorhanden.<br>Nach deiner ersten Session erscheint hier dein Fortschritt.</p></div>`;
+    cnt.innerHTML = `<div class="stats-empty"><div class="big">📊</div><p>Noch keine Daten vorhanden.<br>Nach deiner ersten Session erscheint hier dein Fortschritt.</p><br><button onclick="openImport()" style="font-family:'Jost',sans-serif;font-size:13px;padding:10px 22px;border:1.5px solid var(--border);border-radius:13px;background:var(--white);color:var(--tl);cursor:pointer;">📥 Daten importieren</button></div>`;
     return;
   }
 
@@ -661,10 +673,42 @@ function renderStats() {
     </div>
     <div class="stat-slbl">Übung wählen</div>
     <div class="pills-wrap"><div class="pills">${pills}</div></div>
-    ${chartHtml}`;
+    ${chartHtml}
+    <div style="margin-top:32px;text-align:center;">
+      <button onclick="openImport()" style="font-family:'Jost',sans-serif;font-size:13px;padding:10px 22px;border:1.5px solid var(--border);border-radius:13px;background:var(--white);color:var(--tl);cursor:pointer;">📥 Daten importieren</button>
+    </div>`;
 }
 
 function pickEx(i) { statsEx=window._statsExNames[i]; renderStats(); }
+
+function openImport() {
+  document.getElementById('import-ta').value = '';
+  openModal('modal-import');
+  setTimeout(() => document.getElementById('import-ta').focus(), 100);
+}
+function doImport() {
+  const raw = document.getElementById('import-ta').value.trim();
+  if (!raw) return alert('Nichts eingefügt.');
+  try {
+    const parsed = JSON.parse(raw);
+    const cur = JSON.parse(localStorage.getItem('gymtracker')||'{}');
+    // Merge sessions
+    const existingIds = new Set((cur.sessions||[]).map(s=>s.id));
+    const newSessions = (parsed.sessions||[]).filter(s=>!existingIds.has(s.id));
+    cur.sessions = [...(cur.sessions||[]), ...newSessions];
+    // Merge custom exercises
+    const existingEx = new Set((cur.customExercises||[]).map(e=>e.name));
+    const newEx = (parsed.customExercises||[]).filter(e=>!existingEx.has(e.name));
+    cur.customExercises = [...(cur.customExercises||[]), ...newEx];
+    localStorage.setItem('gymtracker', JSON.stringify(cur));
+    db = cur;
+    closeModal('modal-import');
+    alert(`✓ ${newSessions.length} Sessions importiert!`);
+    renderStats();
+  } catch(e) {
+    alert('Fehler: Ungültiger Text. Bitte nochmal kopieren.');
+  }
+}
 
 function bigChart(data, name) {
   if (!data.length) return '';
@@ -1469,7 +1513,7 @@ function deleteCustomGym(id) {
 renderHome();
 show('home');
 document.addEventListener('touchstart', ()=>{ try { getAudio(); } catch(e){} }, {once:true});
-document.addEventListener('keydown', e=>{ if(e.key==='Escape'){closeModal('modal-replace');closeModal('modal-addex');closeModal('modal-exlib');closeModal('modal-dur');closeModal('modal-addgym');} });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape'){closeModal('modal-replace');closeModal('modal-addex');closeModal('modal-exlib');closeModal('modal-dur');closeModal('modal-addgym');closeModal('modal-import');} });
 document.getElementById('pause-ov').addEventListener('click', e=>{ if(e.target===e.currentTarget) skipPause(); });
 </script>
 </body>

@@ -349,6 +349,17 @@ body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--text);min
 </div>
 
 <!-- MODAL: EDIT DURATION -->
+<div class="modal-ov" id="modal-export">
+  <div class="msheet">
+    <div class="m-handle"></div>
+    <div class="m-title">Daten exportieren</div>
+    <p style="font-size:13px;color:var(--tl);margin-bottom:12px;">Alles markieren, kopieren, dann in der neuen App einfügen.</p>
+    <textarea id="export-ta" style="width:100%;height:140px;border:1.5px solid var(--border);border-radius:13px;padding:12px;font-family:'Jost',sans-serif;font-size:11px;color:var(--text);background:var(--cream);resize:none;" readonly onclick="this.select()"></textarea>
+    <button class="m-save" onclick="selectExportText()">Alles markieren 📋</button>
+    <button class="m-cancel" onclick="closeModal('modal-export')">Schließen</button>
+  </div>
+</div>
+
 <div class="modal-ov" id="modal-dur">
   <div class="msheet">
     <div class="m-handle"></div>
@@ -582,7 +593,10 @@ function renderStats() {
     </div>
     <div class="stat-slbl">Übung wählen</div>
     <div class="pills-wrap"><div class="pills">${pills}</div></div>
-    ${chartHtml}`;
+    ${chartHtml}
+    <div style="margin-top:32px;text-align:center;">
+      <button onclick="openExport()" style="font-family:'Jost',sans-serif;font-size:13px;padding:10px 22px;border:1.5px solid var(--border);border-radius:13px;background:var(--white);color:var(--tl);cursor:pointer;">📤 Daten exportieren</button>
+    </div>`;
 }
 
 function pickEx(i) { statsEx=window._statsExNames[i]; renderStats(); }
@@ -1002,6 +1016,19 @@ function saveDuration() {
   renderDetail();
 }
 
+function openExport() {
+  const data = localStorage.getItem('gymtracker') || '{}';
+  document.getElementById('export-ta').value = data;
+  openModal('modal-export');
+  setTimeout(() => { document.getElementById('export-ta').select(); }, 200);
+}
+function selectExportText() {
+  const ta = document.getElementById('export-ta');
+  ta.select();
+  ta.setSelectionRange(0, 99999);
+  try { document.execCommand('copy'); alert('Kopiert! ✓'); } catch(e) {}
+}
+
 function deleteSession(id) {
   if(!confirm('Session wirklich löschen?')) return;
   db.sessions=(db.sessions||[]).filter(s=>s.id!==id);
@@ -1022,7 +1049,7 @@ function fmtDateShort(d) { if(!d) return ''; const[,m,day]=d.split('-'); return 
 // ── INIT ──────────────────────────────────────────────────────────────────
 renderHome();
 show('home');
-document.addEventListener('keydown', e=>{ if(e.key==='Escape'){closeModal('modal-replace');closeModal('modal-addex');closeModal('modal-dur');} });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape'){closeModal('modal-replace');closeModal('modal-addex');closeModal('modal-dur');closeModal('modal-export');} });
 document.getElementById('pause-ov').addEventListener('click', e=>{ if(e.target===e.currentTarget) skipPause(); });
 </script>
 </body>
