@@ -187,7 +187,10 @@ body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--text);min
 .m-save{width:100%;padding:14px;border:none;border-radius:13px;background:linear-gradient(135deg,var(--rose),var(--rd));color:white;font-family:'Jost',sans-serif;font-size:14px;font-weight:500;cursor:pointer;}
 .m-cancel{width:100%;padding:11px;background:none;border:none;color:var(--tl);font-family:'Jost',sans-serif;font-size:13px;cursor:pointer;margin-top:5px;}
 
-@media(max-width:380px){.day-grid{gap:6px;}.day-card{padding:10px 4px;}.stat-summary{grid-template-columns:1fr 1fr;}}
+@media(max-width:380px){.day-grid{gap:6px;}.day-card{padding:10px 4px;}.stat-summary{grid-template-columns:1fr 1fr;}.gym-btn{font-size:11px;padding:8px 4px;}.gym-toggle{font-size:11px;}.tbar{padding:8px 12px;gap:8px;}.tdisp{font-size:22px;}.fin-btn{padding:7px 12px;font-size:12px;}}
+.msheet{max-height:85vh;overflow-y:auto;}
+.pause-sheet{max-height:85vh;overflow-y:auto;}
+#exlib-list{max-height:50vh;overflow-y:auto;}
 </style>
 </head>
 <body>
@@ -356,9 +359,10 @@ body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--text);min
 <div class="modal-ov" id="modal-exlib">
   <div class="msheet">
     <div class="m-handle"></div>
-    <div class="m-title">Übung wählen</div>
+    <div class="m-title">Übung hinzufügen</div>
+    <input type="text" class="m-inp" id="exlib-search" placeholder="Suchen..." oninput="renderExLib(this.value)" autocomplete="off">
     <div id="exlib-list"></div>
-    <button class="m-save" style="margin-top:8px" onclick="closeModal('modal-exlib');openNewEx()">+ Neue Übung erstellen</button>
+    <button class="m-save" style="margin-top:10px" onclick="closeModal('modal-exlib');openNewEx()">+ Neue Übung erstellen</button>
     <button class="m-cancel" onclick="closeModal('modal-exlib')">Abbrechen</button>
   </div>
 </div>
@@ -842,40 +846,70 @@ function saveReplace() {
 }
 
 // ADD EXERCISE
+function getAllExercises() {
+  const all = [];
+  const seen = new Set();
+  // Add all plan exercises
+  Object.entries(PLANS).forEach(([day, plan]) => {
+    plan.sections.forEach(sec => {
+      sec.exs.forEach(ex => {
+        if (!seen.has(ex.name)) {
+          seen.add(ex.name);
+          all.push({id: ex.id, name: ex.name, s: ex.s, r: ex.r, w: ex.w, rest: ex.rest, source: 'plan', day});
+        }
+      });
+    });
+  });
+  // Add custom exercises
+  (db.customExercises||[]).forEach(ex => {
+    if (!seen.has(ex.name)) {
+      seen.add(ex.name);
+      all.push({...ex, source: 'custom'});
+    }
+  });
+  return all.sort((a,b) => a.name.localeCompare(b.name));
+}
 function openAddEx() {
-  const curGym = session?.gym || (editSessionId ? (db.sessions||[]).find(x=>x.id===editSessionId)?.gym : null) || 'any';
-  const matches = (db.customExercises||[]).filter(x=>x.gym===curGym||x.gym==='any');
-  if(matches.length) {
-    renderExLib(matches);
-    openModal('modal-exlib');
-  } else {
-    openNewEx();
-  }
+  openModal('modal-exlib');
+  renderExLib('');
+  setTimeout(() => {
+    const inp = document.getElementById('exlib-search');
+    if (inp) inp.focus();
+  }, 100);
 }
 function openNewEx() {
   document.getElementById('addex-name').value='';
   openModal('modal-addex');
   setTimeout(()=>document.getElementById('addex-name').focus(),100);
 }
-function renderExLib(matches) {
-  const curGym = session?.gym || (editSessionId ? (db.sessions||[]).find(x=>x.id===editSessionId)?.gym : null) || 'any';
-  const all = (db.customExercises||[]).filter(x=>x.gym===curGym||x.gym==='any');
-  const list = all.length ? all : matches;
-  document.getElementById('exlib-list').innerHTML = list.map(ex => {
-    const gi = gymInfo(ex.gym);
-    const gymPill = ex.gym!=='any' ? `<span class="gym-pill ${gi.cls}" style="font-size:9px">${gi.icon} ${gi.label}</span>` : '';
-    return `<div class="det-ex" style="cursor:pointer;margin-bottom:8px" onclick="addFromLibrary('${ex.id}')">
-      <div style="display:flex;align-items:center;gap:8px">
-        <div class="det-exname" style="margin-bottom:4px;flex:1">${ex.name}${gymPill}</div>
+function renderExLib(query) {
+  const all = getAllExercises();
+  const q = (query||'').toLowerCase().trim();
+  const filtered = q ? all.filter(e => e.name.toLowerCase().includes(q)) : all;
+  const list = document.getElementById('exlib-list');
+  if (!list) return;
+  if (!filtered.length) {
+    list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--tl);font-size:13px">Keine Übungen gefunden</div>';
+    return;
+  }
+  list.innerHTML = filtered.map(ex => {
+    const meta = `${ex.s}×${ex.r}${ex.w ? ' · '+ex.w+'kg' : ''}${ex.rest ? ' · '+ex.rest+'s Pause' : ''}`;
+    return `<div class="det-ex" style="cursor:pointer;margin-bottom:8px" onclick="addFromLibrary('${ex.id}','${ex.name.replace(/'/g,"\\'")}',${ex.s},${ex.r},${ex.w||0},${ex.rest||60})">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div class="det-exname" style="margin-bottom:0">${ex.name}</div>
+        <span style="font-size:11px;color:var(--tl)">${meta}</span>
       </div>
-      <div style="font-size:11px;color:var(--tl)">${ex.s} Sätze × ${ex.r} Reps · ${ex.w}kg · ${ex.rest}s Pause</div>
     </div>`;
   }).join('');
 }
-function addFromLibrary(libId) {
-  const ex=(db.customExercises||[]).find(x=>x.id===libId);
-  if(!ex) return;
-  const newEx={id:'custom-'+Date.now(),name:ex.name,rest:ex.rest,opt:false,sets:Array.from({length:ex.s},()=>({weight:ex.w,reps:ex.r,done:false}))};
+function addFromLibrary(id, name, s, r, w, rest) {
+  const newEx = {
+    id: 'custom-'+Date.now(),
+    name,
+    rest: rest||60,
+    opt: false,
+    sets: Array.from({length:s||3}, ()=>({weight:w||0, reps:r||10, done:false}))
+  };
   if(session) {
     session.exercises.push(newEx);
     saveActive();
@@ -1014,6 +1048,12 @@ function renderDetail() {
             <button class="del-set" onclick="editDelSet('${s.id}',${ei},${si})" title="Satz löschen">✕</button>
           </div>`).join('')}
         <button class="add-set-btn" style="margin-top:4px" onclick="editAddSet('${s.id}',${ei})">+ Satz</button>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+          <span style="font-size:11px;color:var(--tl)">⏱ Pause:</span>
+          <input class="edit-inp" type="number" step="15" min="0" value="${ex.rest||60}" style="width:60px"
+            onchange="editExRest('${s.id}',${ei},this.value)">
+          <span style="font-size:11px;color:var(--tl)">Sek</span>
+        </div>
       </div>`).join('');
     exHtml+=`<button class="add-ex-btn" style="width:100%;margin-top:4px" onclick="openAddEx()">+ Übung hinzufügen</button>`;
     exHtml+=`<button class="fin-btn" style="width:100%;padding:11px;margin-top:10px" onclick="openDurEdit()">⏱ Dauer ändern (${fmtDur(s.duration)})</button>`;
@@ -1090,6 +1130,13 @@ function deleteSession(id) {
   db.sessions=(db.sessions||[]).filter(s=>s.id!==id);
   saveDB();
   goHome();
+}
+
+function editExRest(sid, ei, val) {
+  const s = (db.sessions||[]).find(x=>x.id===sid);
+  if(!s) return;
+  s.exercises[ei].rest = parseInt(val)||60;
+  saveDB();
 }
 
 function editSessionGym(sid, g) {
