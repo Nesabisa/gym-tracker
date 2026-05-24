@@ -495,6 +495,25 @@ const PLANS = {
 // ── STATE ─────────────────────────────────────────────────────────────────
 let db = (() => { try { return JSON.parse(localStorage.getItem('gymtracker')||'{}'); } catch(e) { return {}; } })();
 let chosenDay = null, chosenGym = null;
+let _audioCtx = null;
+function getAudio() {
+  if (!_audioCtx) _audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  if (_audioCtx.state === 'suspended') _audioCtx.resume();
+  return _audioCtx;
+}
+function playBeep() {
+  try {
+    const ctx = getAudio();
+    [[880,0,0.15],[660,0.18,0.12],[880,0.32,0.18]].forEach(([freq,start,dur]) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value = freq; o.type = 'sine';
+      g.gain.setValueAtTime(0.25, ctx.currentTime+start);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+start+dur);
+      o.start(ctx.currentTime+start); o.stop(ctx.currentTime+start+dur+0.01);
+    });
+  } catch(e) {}
+}
 let session = null;
 let sessIv = null, pauseIv = null;
 let pauseTotal = 0, pauseLeft = 0;
@@ -752,7 +771,11 @@ function startSession() {
     prev[prev.length-1].exercises.forEach(ex => { if(ex.nextGoal) g[ex.name] = ex.nextGoal; });
     return g;
   })();
-  exercises.forEach(ex => { ex.lastGoal = lastGoals[ex.name] || null; });
+  exercises.forEach(ex => {
+    ex.lastGoal = lastGoals[ex.name] || null;
+    // Pre-select last goal so buttons are already marked on new session
+    ex.nextGoal = ex.lastGoal ? {...ex.lastGoal} : null;
+  });
   session = {id:Date.now().toString(), date, day:chosenDay, gym:chosenGym, startTime:Date.now(), exercises};
   renderActive();
   show('active');
@@ -1152,6 +1175,7 @@ function tickPause() {
   }
   if (pauseLeft <= 0) {
     skipPause();
+    playBeep();
     if (navigator.vibrate) navigator.vibrate([200,100,200]);
   } else {
     updPauseUI();
@@ -1431,6 +1455,7 @@ function deleteCustomGym(id) {
 // ── INIT ──────────────────────────────────────────────────────────────────
 renderHome();
 show('home');
+document.addEventListener('touchstart', ()=>{ try { getAudio(); } catch(e){} }, {once:true});
 document.addEventListener('keydown', e=>{ if(e.key==='Escape'){closeModal('modal-replace');closeModal('modal-addex');closeModal('modal-exlib');closeModal('modal-dur');closeModal('modal-addgym');} });
 document.getElementById('pause-ov').addEventListener('click', e=>{ if(e.target===e.currentTarget) skipPause(); });
 </script>
