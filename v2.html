@@ -874,27 +874,83 @@ function saveReplace() {
 
 // ADD EXERCISE
 function getAllExercises() {
-  const all = [];
-  const seen = new Set();
-  // Add all plan exercises
+  const entries = [];
+  const planMap = {}; // name -> plan defaults
+
+  // Collect plan defaults
   Object.entries(PLANS).forEach(([day, plan]) => {
     plan.sections.forEach(sec => {
       sec.exs.forEach(ex => {
-        if (!seen.has(ex.name)) {
-          seen.add(ex.name);
-          all.push({id: ex.id, name: ex.name, s: ex.s, r: ex.r, w: ex.w, rest: ex.rest, source: 'plan', day});
+        if (!planMap[ex.name]) {
+          planMap[ex.name] = {id: ex.id, name: ex.name, s: ex.s, r: ex.r, w: ex.w, rest: ex.rest};
         }
       });
     });
   });
+
   // Add custom exercises
   (db.customExercises||[]).forEach(ex => {
-    if (!seen.has(ex.name)) {
-      seen.add(ex.name);
-      all.push({...ex, source: 'custom'});
+    if (!planMap[ex.name]) {
+      planMap[ex.name] = {id: ex.id, name: ex.name, s: ex.s || 3, r: ex.r || 10, w: ex.w || 0, rest: ex.rest || 60};
     }
   });
-  return all.sort((a,b) => a.name.localeCompare(b.name));
+
+  // Build gym history: name -> { gymId -> {w, r, s, rest} } using LATEST session data per gym
+  const history = {};
+  (db.sessions||[]).forEach(s => {
+    s.exercises.forEach(ex => {
+      const valid = ex.sets.filter(x => x.weight > 0 && x.reps > 0);
+      if (!valid.length) return;
+      const maxW = Math.max(...valid.map(x => x.weight));
+      const avgR = Math.round(valid.reduce((a,x)=>a+x.reps,0)/valid.length);
+      const numS = valid.length;
+      if (!history[ex.name]) history[ex.name] = {};
+      // Always overwrite — sessions are in chronological order so last write = latest
+      history[ex.name][s.gym] = {w: maxW, r: avgR, s: numS, rest: ex.rest||60};
+    });
+  });
+
+  const seen = new Set();
+
+  // For each known exercise (plan or custom), add Plan entry + gym-history entries
+  const allNames = new Set([...Object.keys(planMap), ...Object.keys(history)]);
+  [...allNames].sort().forEach(name => {
+    seen.add(name);
+    const plan = planMap[name];
+
+    // Plan entry (always show if it's in plan/custom)
+    if (plan) {
+      entries.push({
+        key: name+'|plan',
+        id: plan.id,
+        name,
+        s: plan.s, r: plan.r, w: plan.w, rest: plan.rest,
+        gym: null,
+        source: 'plan'
+      });
+    }
+
+    // Gym-history entries
+    if (history[name]) {
+      Object.entries(history[name]).forEach(([gymId, data]) => {
+        entries.push({
+          key: name+'|'+gymId,
+          id: (plan?.id||'custom')+'-'+gymId,
+          name,
+          s: data.s, r: data.r, w: data.w, rest: data.rest,
+          gym: gymId,
+          source: 'history'
+        });
+      });
+    }
+
+    // If no plan entry but has history, already added above
+    if (!plan && history[name]) {
+      // already handled — gym entries added above
+    }
+  });
+
+  return entries;
 }
 function openAddEx() {
   openModal('modal-exlib');
@@ -920,22 +976,25 @@ function renderExLib(query) {
     return;
   }
   list.innerHTML = filtered.map(ex => {
-    const meta = `${ex.s}×${ex.r}${ex.w ? ' · '+ex.w+'kg' : ''}${ex.rest ? ' · '+ex.rest+'s Pause' : ''}`;
-    let tagHtml = '';
-    if (ex.source === 'custom') {
-      if (ex.gym && ex.gym !== 'any') {
-        const gi = gymInfo(ex.gym);
-        tagHtml = `<span class="gym-pill ${gi.cls}" style="font-size:9px;padding:2px 6px;border-radius:5px;margin-left:5px">${gi.icon} ${gi.label}</span>`;
-      }
+    // Gym pill
+    let gymPill;
+    if (ex.gym) {
+      const info = gymInfo(ex.gym);
+      gymPill = `<span class="gym-pill ${info.cls}">${info.icon} ${info.label}</span>`;
     } else {
-      tagHtml = `<span style="font-size:9px;padding:2px 6px;border-radius:5px;background:var(--cream);color:var(--tl);margin-left:5px">Plan</span>`;
+      gymPill = `<span style="font-size:9px;padding:2px 6px;border-radius:5px;background:var(--cream);color:var(--tl);font-weight:600;letter-spacing:.3px">Plan</span>`;
     }
-    return `<div class="det-ex" style="cursor:pointer;margin-bottom:8px" onclick="addFromLibrary('${ex.id}','${ex.name.replace(/'/g,"\\'")}',${ex.s},${ex.r},${ex.w||0},${ex.rest||60})">
-      <div style="display:flex;align-items:center;justify-content:space-between">
-        <div style="display:flex;align-items:center;flex:1;min-width:0">
-          <div class="det-exname" style="margin-bottom:0">${ex.name}</div>${tagHtml}
+
+    // Weight/reps info
+    const meta = `${ex.s}×${ex.r}${ex.w ? ' · '+ex.w+'kg' : ''}`;
+
+    return `<div class="det-ex" style="cursor:pointer;margin-bottom:6px;padding:10px 13px" onclick="addFromLibrary('${ex.id}','${ex.name.replace(/'/g,"\\'")}',${ex.s},${ex.r},${ex.w||0},${ex.rest||60})">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <div style="font-size:13px;font-weight:500;flex:1">${ex.name}</div>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+          <span style="font-size:11px;color:var(--tl)">${meta}</span>
+          ${gymPill}
         </div>
-        <span style="font-size:11px;color:var(--tl);flex-shrink:0;margin-left:8px">${meta}</span>
       </div>
     </div>`;
   }).join('');
