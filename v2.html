@@ -56,17 +56,14 @@ body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--text);min
 .setup-sec{margin-bottom:22px;overflow:hidden;}
 .dinput{width:100%;display:block;max-width:100%;padding:13px 15px;border:1.5px solid var(--border);border-radius:13px;background:var(--white);font-family:'Jost',sans-serif;font-size:16px;color:var(--text);outline:none;-webkit-appearance:none;}
 .dinput:focus{border-color:var(--rose);}
-.gym-toggle{display:flex;background:var(--white);border:1.5px solid var(--border);border-radius:13px;overflow:hidden;}
-.gym-btn{flex:1;padding:11px;border:none;background:none;font-family:'Jost',sans-serif;font-size:13px;font-weight:500;color:var(--tl);cursor:pointer;transition:all .18s;}
+.gym-toggle{display:flex;background:var(--white);border:1.5px solid var(--border);border-radius:13px;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+.gym-toggle::-webkit-scrollbar{display:none;}
+.gym-btn{flex:0 0 auto;padding:11px 16px;border:none;background:none;font-family:'Jost',sans-serif;font-size:13px;font-weight:500;color:var(--tl);cursor:pointer;transition:all .18s;white-space:nowrap;}
 .gym-btn.g-evo{background:var(--sl);color:var(--sd);}
 .gym-btn.g-bs{background:var(--rl);color:var(--rd);}
 .gym-btn.g-bs1{background:var(--rl);color:var(--rd);}
 .gym-btn.g-bs2{background:var(--ll);color:var(--ld);}
 .gp-bs2{background:var(--ll);color:var(--ld);}
-.gp-custom{background:var(--ll);color:var(--ld);}
-.gym-btn.g-custom{background:var(--ll);color:var(--ld);}
-.opt-box{width:26px;height:26px;border-radius:7px;border:1.5px solid var(--border);background:var(--cream);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;flex-shrink:0;transition:all .18s;color:var(--tl);}
-.opt-box.on{background:#d4edda;border-color:#6a9960;color:#6a9960;}
 .day-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
 .day-card{border:2px solid var(--border);border-radius:15px;padding:14px 8px;text-align:center;cursor:pointer;background:var(--white);transition:all .2s;}
 .day-card.selA{border-color:var(--rose);background:var(--rl);}
@@ -232,13 +229,8 @@ body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--text);min
       <input type="date" class="dinput" id="setup-date">
     </div>
     <div class="setup-sec">
-      <div class="setup-lbl">Gym</div>
-      <div class="gym-toggle" id="gym-toggle-wrap">
-        <button class="gym-btn" id="gb-evo" onclick="selGym('evo')">🌿 Evo</button>
-        <button class="gym-btn" id="gb-bs1" onclick="selGym('bs1')">🏋️ B&S 1</button>
-        <button class="gym-btn" id="gb-bs2" onclick="selGym('bs2')">🏋️ B&S 2</button>
-        <button class="gym-btn" onclick="openAddGym()" style="color:var(--rd)">+</button>
-      </div>
+      <div class="setup-lbl" style="display:flex;align-items:center;justify-content:space-between">Gym <button onclick="openAddGym()" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:8px;background:none;cursor:pointer;font-family:'Jost',sans-serif;color:var(--tl)">+ Gym</button></div>
+      <div id="gym-toggle-wrap"></div>
     </div>
     <div class="setup-sec">
       <div class="setup-lbl">Trainingstag</div>
@@ -372,14 +364,15 @@ body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--text);min
   </div>
 </div>
 
-<!-- MODAL: ADD GYM -->
+<!-- MODAL: ADD/EDIT GYM -->
 <div class="modal-ov" id="modal-addgym">
   <div class="msheet">
     <div class="m-handle"></div>
-    <div class="m-title">Gym hinzufügen</div>
+    <div class="m-title" id="addgym-title">Gym hinzufügen</div>
     <div class="m-label">Name</div>
     <input type="text" class="m-inp" id="addgym-name" placeholder="z.B. FitX Köln" maxlength="20">
-    <button class="m-save" onclick="saveAddGym()">Hinzufügen ✓</button>
+    <button class="m-save" id="addgym-save" onclick="saveAddGym()">Hinzufügen ✓</button>
+    <button class="del-session-btn" id="addgym-delete" style="display:none" onclick="deleteCustomGym(editingGymId)">🗑 Gym löschen</button>
     <button class="m-cancel" onclick="closeModal('modal-addgym')">Abbrechen</button>
   </div>
 </div>
@@ -538,11 +531,10 @@ function goSetup() {
 
 // ── GYM INFO HELPER ───────────────────────────────────────────────────────
 function gymInfo(g) {
-  if (g==='evo') return {label:'Evo', cls:'gp-evo', icon:'🌿'};
   if (g==='bs1'||g==='bs') return {label:'B&S 1', cls:'gp-bs', icon:'🏋️'};
   if (g==='bs2') return {label:'B&S 2', cls:'gp-bs2', icon:'🏋️'};
   const cg = (db.customGyms||[]).find(x=>x.id===g);
-  if (cg) return {label:cg.label, cls:'gp-custom', icon:'🏃'};
+  if (cg) return {label:cg.label, cls:'gp-evo', icon:'🏃'};
   return {label:'Evo', cls:'gp-evo', icon:'🌿'};
 }
 
@@ -694,54 +686,10 @@ function bigChart(data, name) {
 }
 
 // ── SETUP ─────────────────────────────────────────────────────────────────
-function renderGymToggle() {
-  const wrap = document.getElementById('gym-toggle-wrap');
-  if (!wrap) return;
-  const customs = db.customGyms || [];
-  let html = `
-    <button class="gym-btn" id="gb-evo" onclick="selGym('evo')">🌿 Evo</button>
-    <button class="gym-btn" id="gb-bs1" onclick="selGym('bs1')">🏋️ B&S 1</button>
-    <button class="gym-btn" id="gb-bs2" onclick="selGym('bs2')">🏋️ B&S 2</button>
-  `;
-  customs.forEach(cg => {
-    html += `<button class="gym-btn" id="gb-${cg.id}" onclick="selGym('${cg.id}')">🏃 ${cg.label}</button>`;
-  });
-  html += `<button class="gym-btn" onclick="openAddGym()" style="color:var(--rd)">+</button>`;
-  wrap.innerHTML = html;
-  if (chosenGym) selGym(chosenGym);
-}
-
 function selGym(g) {
   chosenGym = g;
-  document.querySelectorAll('.gym-btn[id^="gb-"]').forEach(btn => {
-    btn.className = 'gym-btn';
-  });
-  const sel = document.getElementById('gb-'+g);
-  if (sel) {
-    if (g==='evo') sel.className = 'gym-btn g-evo';
-    else if (g==='bs1'||g==='bs') sel.className = 'gym-btn g-bs1';
-    else if (g==='bs2') sel.className = 'gym-btn g-bs2';
-    else sel.className = 'gym-btn g-custom';
-  }
-  updateStartBtn();
-}
-
-function openAddGym() {
-  document.getElementById('addgym-name').value = '';
-  openModal('modal-addgym');
-  setTimeout(() => document.getElementById('addgym-name').focus(), 100);
-}
-
-function saveAddGym() {
-  const label = document.getElementById('addgym-name').value.trim();
-  if (!label) return;
-  if (!db.customGyms) db.customGyms = [];
-  const id = 'cg-' + Date.now();
-  db.customGyms.push({id, label});
-  saveDB();
-  closeModal('modal-addgym');
   renderGymToggle();
-  selGym(id);
+  updateStartBtn();
 }
 function selDay(d) {
   chosenDay = d;
@@ -810,15 +758,15 @@ function renderActive() {
 
 function renderExCard(idx, nc) {
   const ex = session.exercises[idx];
-  const numCls = 'n'+nc;
+  const numCls = ex.opt ? 'no' : 'n'+nc;
+  const numLbl = ex.opt ? 'opt' : (idx+1);
   const hint = ex.lastW !== undefined
     ? `<div class="last-hint">↑ Letzte Session: <span>${ex.lastW}kg</span></div>` : '';
   const rows = ex.sets.map((s,si)=>`
     <div class="set-row" id="sr-${idx}-${si}">
       <span class="snr">${si+1}</span>
       <input class="sinp${s.done?' faded':''}" type="number" step="0.5"
-        value="${s.weight||''}" placeholder="0" onchange="updSet(${idx},${si},'weight',this.value)">
-      <span class="sx">kg</span>
+        value="${s.weight||''}" placeholder="kg" onchange="updSet(${idx},${si},'weight',this.value)">
       <span class="sx">×</span>
       <input class="sinp${s.done?' faded':''}" type="number"
         value="${s.reps||''}" placeholder="reps" onchange="updSet(${idx},${si},'reps',this.value)">
@@ -833,16 +781,14 @@ function renderExCard(idx, nc) {
     </div>
   </div>` : '';
   return `<div class="exc" id="ec-${idx}">
-    <div class="exc-hdr" style="flex-wrap:wrap">
-      <button class="opt-box${ex.opt?' on':''}" onclick="togOpt(${idx})" title="Optional">✓</button>
-      <div class="enum ${numCls}">${idx+1}</div>
-      <div class="ename" id="en-${idx}">${ex.name}</div>
+    <div class="exc-hdr">
+      <div class="enum ${numCls}">${numLbl}</div>
+      <div class="ename${ex.opt?' opt':''}" id="en-${idx}">${ex.name}</div>
       <div class="exc-btns">
+        <button class="ic-btn" onclick="editRestInline(${idx})" title="Pause" style="font-size:10px;width:auto;padding:0 5px;">${ex.rest||60}s</button>
+        <button class="ic-btn${ex.opt?' nav-active':''}" onclick="togOpt(${idx})" title="${ex.opt?'Pflichtübung':'Optional'}" style="font-size:10px;width:auto;padding:0 5px;">${ex.opt?'opt':'—'}</button>
         <button class="ic-btn" onclick="openReplace(${idx})" title="Ersetzen">✎</button>
         <button class="ic-btn del" onclick="delEx(${idx})" title="Löschen">🗑</button>
-      </div>
-      <div style="width:100%;margin-top:4px;display:flex;align-items:center;gap:6px;padding-left:32px">
-        <button onclick="editRestInline(${idx})" style="font-size:10px;color:var(--tl);background:var(--cream);border:1px solid var(--border);border-radius:6px;padding:2px 7px;cursor:pointer;font-family:'Jost',sans-serif;">⏱ ${ex.rest||60}s</button>
       </div>
     </div>
     ${hint}
@@ -927,14 +873,6 @@ function saveReplace() {
 }
 
 // ADD EXERCISE
-function lastGymForExercise(name) {
-  const sessions = db.sessions || [];
-  for (let i = sessions.length - 1; i >= 0; i--) {
-    if (sessions[i].exercises.find(e => e.name === name)) return sessions[i].gym;
-  }
-  return null;
-}
-
 function getAllExercises() {
   const all = [];
   const seen = new Set();
@@ -984,12 +922,13 @@ function renderExLib(query) {
   list.innerHTML = filtered.map(ex => {
     const meta = `${ex.s}×${ex.r}${ex.w ? ' · '+ex.w+'kg' : ''}${ex.rest ? ' · '+ex.rest+'s Pause' : ''}`;
     let tagHtml = '';
-    const lastGym = lastGymForExercise(ex.name);
-    if (lastGym) {
-      const gi = gymInfo(lastGym);
-      tagHtml = `<span class="gym-pill ${gi.cls}" style="font-size:9px;padding:2px 6px;border-radius:5px;margin-left:5px">${gi.icon} ${gi.label}</span>`;
+    if (ex.source === 'custom') {
+      if (ex.gym && ex.gym !== 'any') {
+        const gi = gymInfo(ex.gym);
+        tagHtml = `<span class="gym-pill ${gi.cls}" style="font-size:9px;padding:2px 6px;border-radius:5px;margin-left:5px">${gi.icon} ${gi.label}</span>`;
+      }
     } else {
-      tagHtml = `<span style="font-size:9px;padding:2px 6px;border-radius:5px;background:var(--cream);color:var(--tl);margin-left:5px">Neu</span>`;
+      tagHtml = `<span style="font-size:9px;padding:2px 6px;border-radius:5px;background:var(--cream);color:var(--tl);margin-left:5px">Plan</span>`;
     }
     return `<div class="det-ex" style="cursor:pointer;margin-bottom:8px" onclick="addFromLibrary('${ex.id}','${ex.name.replace(/'/g,"\\'")}',${ex.s},${ex.r},${ex.w||0},${ex.rest||60})">
       <div style="display:flex;align-items:center;justify-content:space-between">
@@ -1121,16 +1060,12 @@ function renderDetail() {
 
   let exHtml='';
   if(editMode) {
-    const customGymBtns = (db.customGyms||[]).map(cg =>
-      `<button class="gym-btn${s.gym===cg.id?' g-custom':''}" onclick="editSessionGym('${s.id}','${cg.id}')">🏃 ${cg.label}</button>`
-    ).join('');
     const gymSel = `<div style="margin-bottom:14px">
   <div class="setup-lbl">Gym ändern</div>
-  <div class="gym-toggle" style="flex-wrap:wrap">
+  <div class="gym-toggle">
     <button class="gym-btn${s.gym==='evo'?' g-evo':''}" onclick="editSessionGym('${s.id}','evo')">🌿 Evo</button>
     <button class="gym-btn${(s.gym==='bs1'||s.gym==='bs')?' g-bs1':''}" onclick="editSessionGym('${s.id}','bs1')">🏋️ B&S 1</button>
     <button class="gym-btn${s.gym==='bs2'?' g-bs2':''}" onclick="editSessionGym('${s.id}','bs2')">🏋️ B&S 2</button>
-    ${customGymBtns}
   </div>
 </div>`;
     exHtml=gymSel+s.exercises.map((ex,ei)=>`
@@ -1142,9 +1077,8 @@ function renderDetail() {
         ${ex.sets.map((set,si)=>`
           <div class="edit-set-row">
             <span class="snr" style="font-size:11px;color:var(--tl);width:16px">${si+1}</span>
-            <input class="edit-inp" type="number" step="0.5" value="${set.weight||''}" placeholder="0"
+            <input class="edit-inp" type="number" step="0.5" value="${set.weight||''}" placeholder="kg"
               onchange="editSet('${s.id}',${ei},${si},'weight',this.value)">
-            <span class="sx">kg</span>
             <span class="sx">×</span>
             <input class="edit-inp" type="number" value="${set.reps||''}" placeholder="reps"
               onchange="editSet('${s.id}',${ei},${si},'reps',this.value)">
@@ -1260,6 +1194,79 @@ function fmtTime(sec) { return String(Math.floor(sec/60)).padStart(2,'0')+':'+St
 function fmtDur(sec) { return sec?Math.round(sec/60)+' min':'–'; }
 function fmtDate(d) { if(!d) return ''; const[y,m,day]=d.split('-'); return day+'.'+m+'.'+y; }
 function fmtDateShort(d) { if(!d) return ''; const[,m,day]=d.split('-'); return day+'.'+m; }
+
+// ── GYM TOGGLE RENDER ─────────────────────────────────────────────────────
+function renderGymToggle() {
+  const wrap = document.getElementById('gym-toggle-wrap');
+  if (!wrap) return;
+  const g = chosenGym;
+  const customs = db.customGyms || [];
+  let html = '<div class="gym-toggle">';
+  html += `<button class="gym-btn${g==='evo'?' g-evo':''}" id="gb-evo" onclick="selGym('evo')">🌿 Evo</button>`;
+  html += `<button class="gym-btn${g==='bs1'?' g-bs1':''}" id="gb-bs1" onclick="selGym('bs1')">🏋️ B&S 1</button>`;
+  html += `<button class="gym-btn${g==='bs2'?' g-bs2':''}" id="gb-bs2" onclick="selGym('bs2')">🏋️ B&S 2</button>`;
+  customs.forEach(cg => {
+    html += `<span style="display:flex;align-items:center;flex-shrink:0">
+      <button class="gym-btn${g===cg.id?' g-evo':''}" id="gb-${cg.id}" onclick="selGym('${cg.id}')">🏃 ${cg.label}</button>
+      <button onclick="editCustomGym('${cg.id}')" style="padding:0 4px;border:none;background:none;cursor:pointer;font-size:11px;color:var(--tl);flex-shrink:0" title="Bearbeiten">✎</button>
+    </span>`;
+  });
+  html += '</div>';
+  wrap.innerHTML = html;
+}
+
+// ── CUSTOM GYM MANAGEMENT ─────────────────────────────────────────────────
+let editingGymId = null;
+
+function openAddGym() {
+  editingGymId = null;
+  document.getElementById('addgym-name').value = '';
+  document.getElementById('addgym-title').textContent = 'Gym hinzufügen';
+  document.getElementById('addgym-save').textContent = 'Hinzufügen ✓';
+  document.getElementById('addgym-delete').style.display = 'none';
+  openModal('modal-addgym');
+  setTimeout(() => document.getElementById('addgym-name').focus(), 100);
+}
+
+function editCustomGym(id) {
+  const cg = (db.customGyms||[]).find(x=>x.id===id);
+  if (!cg) return;
+  editingGymId = id;
+  document.getElementById('addgym-name').value = cg.label;
+  document.getElementById('addgym-title').textContent = 'Gym bearbeiten';
+  document.getElementById('addgym-save').textContent = 'Speichern ✓';
+  document.getElementById('addgym-delete').style.display = 'block';
+  openModal('modal-addgym');
+  setTimeout(() => document.getElementById('addgym-name').focus(), 100);
+}
+
+function saveAddGym() {
+  const label = document.getElementById('addgym-name').value.trim();
+  if (!label) return;
+  if (!db.customGyms) db.customGyms = [];
+  if (editingGymId) {
+    const cg = db.customGyms.find(x=>x.id===editingGymId);
+    if (cg) cg.label = label;
+    saveDB();
+    closeModal('modal-addgym');
+    renderGymToggle();
+  } else {
+    const id = 'cg-' + Date.now();
+    db.customGyms.push({id, label});
+    saveDB();
+    closeModal('modal-addgym');
+    renderGymToggle();
+    selGym(id);
+  }
+}
+
+function deleteCustomGym(id) {
+  db.customGyms = (db.customGyms||[]).filter(x=>x.id!==id);
+  saveDB();
+  closeModal('modal-addgym');
+  if (chosenGym === id) { chosenGym = null; updateStartBtn(); }
+  renderGymToggle();
+}
 
 // ── INIT ──────────────────────────────────────────────────────────────────
 renderHome();
