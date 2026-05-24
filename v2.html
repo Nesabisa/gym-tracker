@@ -765,15 +765,17 @@ function startSession() {
     });
   });
   const lastGoals = (() => {
-    const prev = (db.sessions||[]).filter(s=>s.day===chosenDay && (s.gym||'evo')===chosenGym);
+    const prev = (db.sessions||[]).filter(s => s.day === chosenDay);
     if (!prev.length) return {};
+    // Prefer same gym, fall back to any gym for that day
+    const sameGym = prev.filter(s => (s.gym||'evo') === chosenGym);
+    const src = (sameGym.length ? sameGym : prev)[prev.length-1] || prev[prev.length-1];
     const g = {};
-    prev[prev.length-1].exercises.forEach(ex => { if(ex.nextGoal) g[ex.name] = ex.nextGoal; });
+    src.exercises.forEach(ex => { if (ex.nextGoal) g[ex.name] = ex.nextGoal; });
     return g;
   })();
   exercises.forEach(ex => {
     ex.lastGoal = lastGoals[ex.name] || null;
-    // Pre-select last goal so buttons are already marked on new session
     ex.nextGoal = ex.lastGoal ? {...ex.lastGoal} : null;
   });
   session = {id:Date.now().toString(), date, day:chosenDay, gym:chosenGym, startTime:Date.now(), exercises};
@@ -1066,12 +1068,23 @@ function toggleExLib(name) {
   else { exLibExpanded.clear(); exLibExpanded.add(name); }
   renderExLib(document.getElementById('exlib-search')?.value||'');
 }
+function getLastGoalForExercise(name) {
+  const sessions = db.sessions || [];
+  for (let i = sessions.length - 1; i >= 0; i--) {
+    const ex = sessions[i].exercises.find(e => e.name === name && e.nextGoal);
+    if (ex) return ex.nextGoal;
+  }
+  return null;
+}
 function addFromLibrary(id, name, s, r, w, rest) {
+  const lastGoal = getLastGoalForExercise(name);
   const newEx = {
     id: 'custom-'+Date.now(),
     name,
     rest: rest||60,
     opt: false,
+    lastGoal,
+    nextGoal: lastGoal ? {...lastGoal} : null,
     sets: Array.from({length:s||3}, ()=>({weight:w||0, reps:r||10, done:false}))
   };
   if(session) {
