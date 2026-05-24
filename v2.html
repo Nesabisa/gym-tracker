@@ -645,6 +645,14 @@ function renderHome() {
 // ── STATS ─────────────────────────────────────────────────────────────────
 let statsEx = null;
 
+function gymColor(g) {
+  if (g==='bs1'||g==='bs') return {stroke:'var(--rd)', fill:'var(--rl)', label:'B&S 1'};
+  if (g==='bs2')            return {stroke:'var(--ld)', fill:'var(--ll)', label:'B&S 2'};
+  const cg = (db.customGyms||[]).find(x=>x.id===g);
+  if (cg) return {stroke:'#b08050', fill:'#f5e8d5', label:cg.label};
+  return {stroke:'var(--sd)', fill:'var(--sl)', label:'Evo'};
+}
+
 function renderStats() {
   const sessions = db.sessions||[];
   const cnt = document.getElementById('stats-content');
@@ -655,16 +663,18 @@ function renderStats() {
 
   const totalMin = sessions.reduce((a,s)=>a+(s.duration||0),0);
 
-  // Build exercise history map
+  // Build exercise map: { exName: { gymId: [{date,w,reps}] } }
   const exMap = {};
   sessions.forEach(s => {
+    const gymId = s.gym || 'evo';
     s.exercises.forEach(ex => {
       const validSets = ex.sets.filter(x=>x.weight>0 && x.reps>0);
       if (!validSets.length) return;
       const maxW = Math.max(...validSets.map(x=>x.weight));
       const avgReps = Math.round(validSets.reduce((a,x)=>a+x.reps,0)/validSets.length);
-      if (!exMap[ex.name]) exMap[ex.name]=[];
-      exMap[ex.name].push({date:s.date, w:maxW, reps:avgReps});
+      if (!exMap[ex.name]) exMap[ex.name] = {};
+      if (!exMap[ex.name][gymId]) exMap[ex.name][gymId] = [];
+      exMap[ex.name][gymId].push({date:s.date, w:maxW, reps:avgReps});
     });
   });
 
@@ -676,7 +686,7 @@ function renderStats() {
     `<button class="pill${n===statsEx?' active':''}" onclick="pickEx(${i})">${n}</button>`
   ).join('');
 
-  const chartHtml = statsEx ? bigChart(exMap[statsEx].sort((a,b)=>a.date.localeCompare(b.date)), statsEx) : '';
+  const chartHtml = statsEx ? bigChart(exMap[statsEx], statsEx) : '';
 
   cnt.innerHTML = `
     <div class="stat-summary">
@@ -716,11 +726,9 @@ function doImport() {
   try {
     const parsed = JSON.parse(raw);
     const cur = JSON.parse(localStorage.getItem('gymtracker')||'{}');
-    // Merge sessions
     const existingIds = new Set((cur.sessions||[]).map(s=>s.id));
     const newSessions = (parsed.sessions||[]).filter(s=>!existingIds.has(s.id));
     cur.sessions = [...(cur.sessions||[]), ...newSessions];
-    // Merge custom exercises
     const existingEx = new Set((cur.customExercises||[]).map(e=>e.name));
     const newEx = (parsed.customExercises||[]).filter(e=>!existingEx.has(e.name));
     cur.customExercises = [...(cur.customExercises||[]), ...newEx];
@@ -734,65 +742,89 @@ function doImport() {
   }
 }
 
-function bigChart(data, name) {
-  if (!data.length) return '';
-  const W=340, H=180, pL=42, pR=14, pT=28, pB=44;
-  const cW=W-pL-pR, cH=H-pT-pB;
+// gymData = { gymId: [{date, w, reps}] }
+function bigChart(gymData, name) {
+  const gyms = Object.keys(gymData).filter(g => gymData[g].length > 0);
+  if (!gyms.length) return '';
 
-  const weights = data.map(d=>d.w);
-  const minW = Math.min(...weights), maxW = Math.max(...weights);
+  const W=340, H=190, pL=44, pR=14, pT=32, pB=46;
+  const cW=W-pL-pR, cH=H-pT-pB;
+  const multi = gyms.length > 1;
+
+  // Unified date axis
+  const allDates = [...new Set(gyms.flatMap(g=>gymData[g].map(d=>d.date)))].sort();
+  const allWeights = gyms.flatMap(g=>gymData[g].map(d=>d.w));
+  const minW = Math.min(...allWeights), maxW = Math.max(...allWeights);
   const range = maxW-minW || (minW*0.1) || 1;
-  const yMin = minW - range*0.15;
-  const yMax = maxW + range*0.15;
+  const yMin = minW - range*0.2, yMax = maxW + range*0.2;
   const yRange = yMax-yMin;
 
-  const pts = data.map((d,i)=>({
-    x: pL + (data.length>1 ? i/(data.length-1) : 0.5)*cW,
-    y: pT + (1-(d.w-yMin)/yRange)*cH,
-    w: d.w, reps: d.reps, date: d.date
-  }));
+  const xPos = date => allDates.length===1 ? pL+cW/2 : pL+(allDates.indexOf(date)/(allDates.length-1))*cW;
+  const yPos = w => pT+(1-(w-yMin)/yRange)*cH;
 
-  // Grid lines (3 horizontal)
+  // Grid
   const gridVals = [minW, (minW+maxW)/2, maxW];
   const grid = gridVals.map(v=>{
-    const y = pT + (1-(v-yMin)/yRange)*cH;
+    const y = yPos(v);
     return `<line x1="${pL}" y1="${y.toFixed(1)}" x2="${W-pR}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-width="1" stroke-dasharray="3,3"/>
             <text x="${pL-5}" y="${(y+4).toFixed(1)}" font-size="9" fill="var(--tl)" text-anchor="end">${v}kg</text>`;
   }).join('');
 
-  // Area
-  const lineStr = pts.map(p=>`${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
-  const areaStr = `${pL},${pT+cH} `+lineStr+` ${pts[pts.length-1].x.toFixed(1)},${pT+cH}`;
-
-  // Dots + labels
-  const items = pts.map((p,i)=>{
-    const labelY = p.y > pT+16 ? p.y-10 : p.y+18;
-    const dateX = Math.max(pL+12, Math.min(W-pR-12, p.x));
-    return `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4.5" fill="var(--rd)"/>
-            <text x="${p.x.toFixed(1)}" y="${labelY.toFixed(1)}" font-size="10" fill="var(--rd)" text-anchor="middle" font-weight="500">${p.w}kg</text>
-            <text x="${dateX.toFixed(1)}" y="${(pT+cH+14).toFixed(1)}" font-size="9" fill="var(--tl)" text-anchor="middle">${fmtDateShort(p.date)}</text>
-            <text x="${dateX.toFixed(1)}" y="${(pT+cH+26).toFixed(1)}" font-size="9" fill="var(--sd)" text-anchor="middle">${p.reps}×</text>`;
+  // Date labels
+  const dateLabels = allDates.map(d=>{
+    const x = Math.max(pL+12, Math.min(W-pR-12, xPos(d)));
+    return `<text x="${x.toFixed(1)}" y="${(pT+cH+14).toFixed(1)}" font-size="9" fill="var(--tl)" text-anchor="middle">${fmtDateShort(d)}</text>`;
   }).join('');
 
-  const first=data[0], last=data[data.length-1];
-  const diff=(last.w-first.w).toFixed(1);
-  const diffCls=diff>0?'up':diff<0?'down':'';
-  const diffStr=diff>0?`+${diff}kg`:diff<0?`${diff}kg`:'±0';
-  const sessions_txt=data.length+' Session'+(data.length!==1?'s':'');
+  // Series per gym
+  let seriesHtml = '';
+  let legendHtml = '';
+  let summaryRows = '';
 
+  gyms.forEach(gymId => {
+    const col = gymColor(gymId);
+    const data = gymData[gymId].slice().sort((a,b)=>a.date.localeCompare(b.date));
+    const pts = data.map(d=>({x:xPos(d.date), y:yPos(d.w), w:d.w, reps:d.reps, date:d.date}));
+    const lineStr = pts.map(p=>`${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+    const areaStr = `${pts[0].x.toFixed(1)},${pT+cH} ${lineStr} ${pts[pts.length-1].x.toFixed(1)},${pT+cH}`;
+
+    seriesHtml += `<polygon points="${areaStr}" fill="${col.fill}" opacity=".28"/>`;
+    if (pts.length>1) seriesHtml += `<polyline points="${lineStr}" fill="none" stroke="${col.stroke}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+    pts.forEach(p=>{
+      const labelY = p.y > pT+16 ? p.y-10 : p.y+18;
+      seriesHtml += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="${col.stroke}"/>
+        <text x="${p.x.toFixed(1)}" y="${labelY.toFixed(1)}" font-size="10" fill="${col.stroke}" text-anchor="middle" font-weight="500">${p.w}kg</text>`;
+      if (!multi) {
+        const dateX = Math.max(pL+12, Math.min(W-pR-12, p.x));
+        seriesHtml += `<text x="${dateX.toFixed(1)}" y="${(pT+cH+28).toFixed(1)}" font-size="9" fill="var(--sd)" text-anchor="middle">${p.reps}×</text>`;
+      }
+    });
+
+    if (multi) legendHtml += `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--tm)"><span style="width:12px;height:3px;background:${col.stroke};border-radius:2px;display:inline-block"></span>${col.label}</span>`;
+
+    const first=data[0], last=data[data.length-1];
+    const diff=(last.w-first.w).toFixed(1);
+    const diffCls=diff>0?'up':diff<0?'down':'';
+    const diffStr=diff>0?`+${diff}kg`:diff<0?`${diff}kg`:'±0';
+    if (multi) {
+      summaryRows += `<div style="font-size:12px;color:var(--tm);display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:${col.stroke};flex-shrink:0"></span>${col.label}: <span class="chart-diff ${diffCls}" style="font-size:12px">${diffStr}</span><span style="color:var(--tl);font-size:11px">· aktuell ${last.w}kg</span></div>`;
+    } else {
+      summaryRows = `<div class="chart-diff ${diffCls}">${diffStr}</div><div class="chart-meta">${data.length} Session${data.length!==1?'s':''} · aktuell ${last.w}kg</div>`;
+    }
+  });
+
+  const pB2 = multi ? pB : pB+14;
   return `<div class="chart-card">
     <div class="chart-prog">
       <div class="chart-name">${name}</div>
-      <div class="chart-diff ${diffCls}">${diffStr}</div>
-      <div class="chart-meta">${sessions_txt} · aktuell ${last.w}kg</div>
+      ${summaryRows}
     </div>
-    <svg viewBox="0 0 ${W} ${H}" class="chart-svg">
+    ${multi ? `<div style="display:flex;gap:12px;padding:4px 14px 10px;flex-wrap:wrap">${legendHtml}</div>` : ''}
+    <svg viewBox="0 0 ${W} ${H+(multi?0:14)}" class="chart-svg">
       ${grid}
-      <polygon points="${areaStr}" fill="var(--rl)" opacity=".35"/>
-      <polyline points="${lineStr}" fill="none" stroke="var(--rd)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
-      ${items}
+      ${seriesHtml}
+      ${dateLabels}
     </svg>
-    <div style="text-align:center;font-size:10px;color:var(--tl);margin-top:6px">Grüne Zahl = ⌀ Wiederholungen pro Satz</div>
   </div>`;
 }
 
