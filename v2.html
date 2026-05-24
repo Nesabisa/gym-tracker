@@ -53,8 +53,8 @@ body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--text);min
 
 /* SETUP */
 .setup-lbl{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--tl);font-weight:500;margin-bottom:10px;}
-.setup-sec{margin-bottom:22px;}
-.dinput{width:100%;padding:13px 15px;border:1.5px solid var(--border);border-radius:13px;background:var(--white);font-family:'Jost',sans-serif;font-size:15px;color:var(--text);outline:none;}
+.setup-sec{margin-bottom:22px;overflow:hidden;}
+.dinput{width:100%;display:block;max-width:100%;padding:13px 15px;border:1.5px solid var(--border);border-radius:13px;background:var(--white);font-family:'Jost',sans-serif;font-size:16px;color:var(--text);outline:none;-webkit-appearance:none;}
 .dinput:focus{border-color:var(--rose);}
 .gym-toggle{display:flex;background:var(--white);border:1.5px solid var(--border);border-radius:13px;overflow:hidden;}
 .gym-btn{flex:1;padding:11px;border:none;background:none;font-family:'Jost',sans-serif;font-size:13px;font-weight:500;color:var(--tl);cursor:pointer;transition:all .18s;}
@@ -252,7 +252,7 @@ body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--text);min
         </div>
       </div>
     </div>
-    <button class="start-btn" id="start-btn" onclick="startSession()">Training starten ▶</button>
+    <button class="start-btn" id="start-btn" onclick="startSession()">Training starten →</button>
   </div>
 </div>
 
@@ -777,6 +777,8 @@ function renderExCard(idx, nc) {
       <div class="enum ${numCls}">${numLbl}</div>
       <div class="ename${ex.opt?' opt':''}" id="en-${idx}">${ex.name}</div>
       <div class="exc-btns">
+        <button class="ic-btn" onclick="editRestInline(${idx})" title="Pause" style="font-size:10px;width:auto;padding:0 5px;">${ex.rest||60}s</button>
+        <button class="ic-btn${ex.opt?' nav-active':''}" onclick="togOpt(${idx})" title="${ex.opt?'Pflichtübung':'Optional'}" style="font-size:10px;width:auto;padding:0 5px;">${ex.opt?'opt':'—'}</button>
         <button class="ic-btn" onclick="openReplace(${idx})" title="Ersetzen">✎</button>
         <button class="ic-btn del" onclick="delEx(${idx})" title="Löschen">🗑</button>
       </div>
@@ -827,6 +829,23 @@ function reRenderEx(ei) {
   const nc={A:'r',B:'s',C:'l'}[session.day];
   const el=document.getElementById(`ec-${ei}`);
   if(el) el.outerHTML=renderExCard(ei,nc);
+}
+
+function editRestInline(ei) {
+  const cur = session.exercises[ei].rest || 60;
+  const v = prompt('Pause in Sekunden:', cur);
+  if (v === null) return;
+  const n = parseInt(v);
+  if (isNaN(n) || n < 0) return;
+  session.exercises[ei].rest = n;
+  saveActive();
+  reRenderEx(ei);
+}
+
+function togOpt(ei) {
+  session.exercises[ei].opt = !session.exercises[ei].opt;
+  saveActive();
+  reRenderEx(ei);
 }
 
 // REPLACE
@@ -894,10 +913,21 @@ function renderExLib(query) {
   }
   list.innerHTML = filtered.map(ex => {
     const meta = `${ex.s}×${ex.r}${ex.w ? ' · '+ex.w+'kg' : ''}${ex.rest ? ' · '+ex.rest+'s Pause' : ''}`;
+    let tagHtml = '';
+    if (ex.source === 'custom') {
+      if (ex.gym && ex.gym !== 'any') {
+        const gi = gymInfo(ex.gym);
+        tagHtml = `<span class="gym-pill ${gi.cls}" style="font-size:9px;padding:2px 6px;border-radius:5px;margin-left:5px">${gi.icon} ${gi.label}</span>`;
+      }
+    } else {
+      tagHtml = `<span style="font-size:9px;padding:2px 6px;border-radius:5px;background:var(--cream);color:var(--tl);margin-left:5px">Plan</span>`;
+    }
     return `<div class="det-ex" style="cursor:pointer;margin-bottom:8px" onclick="addFromLibrary('${ex.id}','${ex.name.replace(/'/g,"\\'")}',${ex.s},${ex.r},${ex.w||0},${ex.rest||60})">
       <div style="display:flex;align-items:center;justify-content:space-between">
-        <div class="det-exname" style="margin-bottom:0">${ex.name}</div>
-        <span style="font-size:11px;color:var(--tl)">${meta}</span>
+        <div style="display:flex;align-items:center;flex:1;min-width:0">
+          <div class="det-exname" style="margin-bottom:0">${ex.name}</div>${tagHtml}
+        </div>
+        <span style="font-size:11px;color:var(--tl);flex-shrink:0;margin-left:8px">${meta}</span>
       </div>
     </div>`;
   }).join('');
