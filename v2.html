@@ -712,7 +712,7 @@ function renderStats() {
       <input class="ex-search-inp" id="ex-search-inp" type="text" placeholder="Übung suchen..." autocomplete="off"
         value="${statsEx||''}"
         oninput="filterExDrop(this.value)"
-        onfocus="filterExDrop(this.value)"
+        onfocus="this.select(); filterExDrop('')"
         onkeydown="exDropKey(event)">
       <div class="ex-dropdown" id="ex-dropdown"></div>
     </div>
