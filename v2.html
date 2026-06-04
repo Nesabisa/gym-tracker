@@ -144,16 +144,20 @@ body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--text);min
 .del-session-btn{width:100%;padding:13px;border:1.5px solid #f5c0bb;border-radius:13px;background:#fdecea;color:#c0392b;font-family:'Jost',sans-serif;font-size:14px;cursor:pointer;margin-top:16px;}
 
 /* STATS */
-.stat-summary{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px;}
-.stat-box{background:var(--white);border:1px solid var(--border);border-radius:13px;padding:14px 10px;text-align:center;}
-.stat-val{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:400;color:var(--text);}
+.stat-summary{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:20px;}
+.stat-box{background:var(--white);border:1px solid var(--border);border-radius:13px;padding:14px 6px;text-align:center;}
+.stat-val{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:400;color:var(--text);}
 .stat-nm{font-size:10px;color:var(--tl);margin-top:3px;}
 .stat-slbl{font-size:9px;letter-spacing:2.5px;text-transform:uppercase;color:var(--tl);font-weight:500;margin:18px 0 10px;display:flex;align-items:center;gap:8px;}
 .stat-slbl::after{content:'';flex:1;height:1px;background:var(--border);}
-.pills-wrap{overflow-x:auto;margin:0 -14px 16px;padding:0 14px;}
-.pills{display:flex;gap:7px;width:max-content;}
-.pill{padding:7px 14px;border:1.5px solid var(--border);border-radius:20px;background:var(--white);font-family:'Jost',sans-serif;font-size:12px;font-weight:500;color:var(--tl);cursor:pointer;transition:all .18s;white-space:nowrap;}
-.pill.active{background:var(--rl);border-color:var(--rose);color:var(--rd);}
+.ex-search-wrap{position:relative;margin-bottom:16px;}
+.ex-search-inp{width:100%;padding:11px 15px;border:1.5px solid var(--border);border-radius:13px;background:var(--white);font-family:'Jost',sans-serif;font-size:15px;color:var(--text);outline:none;-webkit-appearance:none;}
+.ex-search-inp:focus{border-color:var(--rose);}
+.ex-dropdown{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--white);border:1.5px solid var(--border);border-radius:13px;z-index:50;max-height:220px;overflow-y:auto;box-shadow:0 8px 24px rgba(58,46,46,.12);display:none;}
+.ex-dropdown.open{display:block;}
+.ex-drop-item{padding:11px 15px;font-family:'Jost',sans-serif;font-size:14px;color:var(--text);cursor:pointer;border-bottom:1px solid var(--border);}
+.ex-drop-item:last-child{border-bottom:none;}
+.ex-drop-item:hover,.ex-drop-item.hi{background:var(--rl);color:var(--rd);}
 .chart-card{background:var(--white);border:1px solid var(--border);border-radius:16px;padding:16px 14px;margin-bottom:12px;}
 .chart-prog{display:flex;align-items:baseline;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
 .chart-name{font-size:15px;font-weight:500;}
@@ -663,6 +667,17 @@ function renderStats() {
 
   const totalMin = sessions.reduce((a,s)=>a+(s.duration||0),0);
 
+  // Average rest days between sessions
+  const sorted = sessions.slice().sort((a,b)=>a.date.localeCompare(b.date));
+  let avgRest = '—';
+  if (sorted.length > 1) {
+    let totalDays = 0;
+    for (let i=1; i<sorted.length; i++) {
+      totalDays += (new Date(sorted[i].date) - new Date(sorted[i-1].date)) / 86400000;
+    }
+    avgRest = (totalDays / (sorted.length-1)).toFixed(1);
+  }
+
   // Build exercise map: { exName: { gymId: [{date,w,reps}] } }
   const exMap = {};
   sessions.forEach(s => {
@@ -680,21 +695,27 @@ function renderStats() {
 
   const exNames = Object.keys(exMap).sort();
   if (!statsEx || !exMap[statsEx]) statsEx = exNames[0]||null;
+  window._statsExMap = exMap;
   window._statsExNames = exNames;
 
-  const pills = exNames.map((n,i)=>
-    `<button class="pill${n===statsEx?' active':''}" onclick="pickEx(${i})">${n}</button>`
-  ).join('');
-
   const chartHtml = statsEx ? bigChart(exMap[statsEx], statsEx) : '';
+  const selLabel = statsEx || 'Übung wählen...';
 
   cnt.innerHTML = `
     <div class="stat-summary">
       <div class="stat-box"><div class="stat-val">${sessions.length}</div><div class="stat-nm">Sessions</div></div>
       <div class="stat-box"><div class="stat-val">${Math.round(totalMin/60)}</div><div class="stat-nm">Minuten</div></div>
+      <div class="stat-box"><div class="stat-val">${avgRest}</div><div class="stat-nm">Ø Pause</div></div>
     </div>
     <div class="stat-slbl">Übung wählen</div>
-    <div class="pills-wrap"><div class="pills">${pills}</div></div>
+    <div class="ex-search-wrap">
+      <input class="ex-search-inp" id="ex-search-inp" type="text" placeholder="Übung suchen..." autocomplete="off"
+        value="${statsEx||''}"
+        oninput="filterExDrop(this.value)"
+        onfocus="filterExDrop(this.value)"
+        onkeydown="exDropKey(event)">
+      <div class="ex-dropdown" id="ex-dropdown"></div>
+    </div>
     ${chartHtml}
     <div style="margin-top:32px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
       <button onclick="openImport()" style="font-family:'Jost',sans-serif;font-size:13px;padding:10px 22px;border:1.5px solid var(--border);border-radius:13px;background:var(--white);color:var(--tl);cursor:pointer;">📥 Importieren</button>
@@ -703,6 +724,69 @@ function renderStats() {
 }
 
 function pickEx(i) { statsEx=window._statsExNames[i]; renderStats(); }
+
+function filterExDrop(val) {
+  const names = window._statsExNames || [];
+  const q = val.trim().toLowerCase();
+  const matches = q ? names.filter(n=>n.toLowerCase().includes(q)) : names;
+  const dd = document.getElementById('ex-dropdown');
+  if (!dd) return;
+  if (!matches.length) { dd.classList.remove('open'); return; }
+  dd.innerHTML = matches.map(n=>
+    `<div class="ex-drop-item${n===statsEx?' hi':''}" onmousedown="pickExByName('${n.replace(/'/g,"\\'")}')"> ${n}</div>`
+  ).join('');
+  dd.classList.add('open');
+}
+
+function pickExByName(name) {
+  statsEx = name;
+  const dd = document.getElementById('ex-dropdown');
+  if (dd) dd.classList.remove('open');
+  const inp = document.getElementById('ex-search-inp');
+  if (inp) inp.value = name;
+  // Re-render just the chart part
+  const exMap = window._statsExMap || {};
+  const chartEl = document.querySelector('.chart-card');
+  const newHtml = statsEx && exMap[statsEx] ? bigChart(exMap[statsEx], statsEx) : '';
+  if (chartEl) chartEl.outerHTML = newHtml;
+  else {
+    const wrap = document.getElementById('ex-search-wrap')?.parentElement;
+    if (wrap) {
+      const existing = wrap.querySelector('.chart-card');
+      if (existing) existing.outerHTML = newHtml;
+      else wrap.insertAdjacentHTML('beforeend', newHtml);
+    }
+  }
+}
+
+function exDropKey(e) {
+  const dd = document.getElementById('ex-dropdown');
+  if (!dd) return;
+  const items = dd.querySelectorAll('.ex-drop-item');
+  const hiIdx = [...items].findIndex(el=>el.classList.contains('hi'));
+  if (e.key==='ArrowDown') {
+    e.preventDefault();
+    const next = Math.min(hiIdx+1, items.length-1);
+    items.forEach((el,i)=>el.classList.toggle('hi',i===next));
+  } else if (e.key==='ArrowUp') {
+    e.preventDefault();
+    const prev = Math.max(hiIdx-1, 0);
+    items.forEach((el,i)=>el.classList.toggle('hi',i===prev));
+  } else if (e.key==='Enter') {
+    const hi = dd.querySelector('.ex-drop-item.hi');
+    if (hi) hi.dispatchEvent(new MouseEvent('mousedown'));
+    else dd.classList.remove('open');
+  } else if (e.key==='Escape') {
+    dd.classList.remove('open');
+  }
+}
+
+document.addEventListener('click', e=>{
+  const wrap = document.getElementById('ex-search-inp');
+  if (wrap && !wrap.closest('.ex-search-wrap')?.contains(e.target)) {
+    document.getElementById('ex-dropdown')?.classList.remove('open');
+  }
+});
 
 function openExport() {
   document.getElementById('export-ta').value = localStorage.getItem('gymtracker') || '{}';
