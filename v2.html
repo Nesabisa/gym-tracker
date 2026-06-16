@@ -388,6 +388,30 @@ body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--text);min
   </div>
 </div>
 
+<!-- MODAL: ADD TO PLAN -->
+<div class="modal-ov" id="modal-addtoplan">
+  <div class="msheet">
+    <div class="m-handle"></div>
+    <div class="m-title" id="addtoplan-title">Zu Plan hinzufügen</div>
+    <p style="font-size:13px;color:var(--tl);margin-bottom:16px">Welcher Tag soll diese Übung dauerhaft enthalten?</p>
+    <div style="display:flex;gap:8px;margin-bottom:20px">
+      <button onclick="confirmAddToPlan('A')" style="flex:1;background:var(--rl);border:1.5px solid var(--rose);border-radius:13px;padding:14px 6px;font-family:'Jost',sans-serif;cursor:pointer">
+        <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--rd)">A</div>
+        <div style="font-size:10px;color:var(--rd);margin-top:3px">Back &<br>Strength</div>
+      </button>
+      <button onclick="confirmAddToPlan('B')" style="flex:1;background:var(--sl);border:1.5px solid var(--sage);border-radius:13px;padding:14px 6px;font-family:'Jost',sans-serif;cursor:pointer">
+        <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--sd)">B</div>
+        <div style="font-size:10px;color:var(--sd);margin-top:3px">Glutes &<br>Power</div>
+      </button>
+      <button onclick="confirmAddToPlan('C')" style="flex:1;background:var(--ll);border:1.5px solid var(--lav);border-radius:13px;padding:14px 6px;font-family:'Jost',sans-serif;cursor:pointer">
+        <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--ld)">C</div>
+        <div style="font-size:10px;color:var(--ld);margin-top:3px">Squats &<br>Shoulders</div>
+      </button>
+    </div>
+    <button class="m-cancel" onclick="closeModal('modal-addtoplan')">Abbrechen</button>
+  </div>
+</div>
+
 <!-- MODAL: EXPORT -->
 <div class="modal-ov" id="modal-export">
   <div class="msheet">
@@ -592,6 +616,7 @@ function resumeSession() {
 }
 function goStats() { renderStats(); show('stats'); }
 function goSetup() {
+  try { db = JSON.parse(localStorage.getItem('gymtracker')||'{}'); } catch(e) {}
   chosenDay = null; chosenGym = null;
   document.getElementById('setup-date').value = new Date().toISOString().split('T')[0];
   ['A','B','C'].forEach(d => document.getElementById('dc-'+d).className='day-card');
@@ -948,6 +973,20 @@ function startSession() {
       });
     });
   });
+  // Add custom plan exercises for this day
+  const customPlanExs = (db.customPlanExercises||{})[chosenDay]||[];
+  customPlanExs.forEach(ce => {
+    if (exercises.find(e=>e.name===ce.name)) return;
+    // Find last weight from history for this exercise
+    const prev = (db.sessions||[]).filter(s=>s.day===chosenDay&&(s.gym||'evo')===chosenGym);
+    let lastWeight = ce.w;
+    for (let i=prev.length-1; i>=0; i--) {
+      const found = prev[i].exercises.find(e=>e.name===ce.name);
+      if (found) { const ws=found.sets.find(s=>s.done&&s.weight>0)||found.sets.find(s=>s.weight>0); if(ws){lastWeight=ws.weight;break;} }
+    }
+    exercises.push({id:'cplan-'+ce.name.replace(/[^a-z0-9]/gi,''), name:ce.name, rest:ce.rest||60, opt:false, lastW:lastWeight!==ce.w?lastWeight:undefined, section:null, sets:Array.from({length:ce.s||3},()=>({weight:lastWeight,reps:ce.r||10,done:false}))});
+  });
+
   const lastGoals = (() => {
     const prev = (db.sessions||[]).filter(s => s.day === chosenDay);
     if (!prev.length) return {};
@@ -1048,6 +1087,7 @@ function renderExCard(idx, nc) {
       <div class="ename" id="en-${idx}">${ex.name}</div>
       <div class="exc-btns">
         <button class="ic-btn" onclick="editRestInline(${idx})" title="Pause" style="font-size:10px;width:auto;padding:0 6px;">${ex.rest||60}s</button>
+        ${ex.id&&ex.id.startsWith('custom-') ? `<button class="ic-btn" onclick="openAddToPlan(${idx})" title="Zu Plan hinzufügen" style="font-size:12px">📌</button>` : ''}
         <button class="ic-btn" onclick="openReplace(${idx})" title="Ersetzen">✎</button>
         <button class="ic-btn del" onclick="delEx(${idx})" title="Löschen">🗑</button>
       </div>
@@ -1058,6 +1098,31 @@ function renderExCard(idx, nc) {
     ${goalHtml}
     ${cueHtml}
   </div>`;
+}
+
+let addToPlanIdx = null;
+function openAddToPlan(idx) {
+  addToPlanIdx = idx;
+  const ex = session.exercises[idx];
+  document.getElementById('addtoplan-title').textContent = '"'+ex.name+'" zu Plan';
+  openModal('modal-addtoplan');
+}
+function confirmAddToPlan(day) {
+  const ex = session.exercises[addToPlanIdx];
+  if (!db.customPlanExercises) db.customPlanExercises = {};
+  if (!db.customPlanExercises[day]) db.customPlanExercises[day] = [];
+  // Check if already in default plan or custom plan
+  const inDefault = PLANS[day].sections.some(sec=>sec.exs.some(e=>e.name===ex.name));
+  const inCustom = db.customPlanExercises[day].find(e=>e.name===ex.name);
+  if (inDefault || inCustom) {
+    alert('"'+ex.name+'" ist schon in Plan '+day+'.');
+  } else {
+    const lastSet = ex.sets[ex.sets.length-1]||{weight:0,reps:10};
+    db.customPlanExercises[day].push({name:ex.name, s:ex.sets.length, r:lastSet.reps, w:lastSet.weight||0, rest:ex.rest||60});
+    saveDB();
+    alert('✓ "'+ex.name+'" dauerhaft zu Plan '+day+' hinzugefügt!');
+  }
+  closeModal('modal-addtoplan');
 }
 
 function togCues(idx) {
@@ -1441,12 +1506,16 @@ function renderDetail() {
 
   let exHtml='';
   if(editMode) {
+    const customGymBtns = (db.customGyms||[]).map(cg=>
+      `<button class="gym-btn${s.gym===cg.id?' g-evo':''}" onclick="editSessionGym('${s.id}','${cg.id}')">🏃 ${cg.label}</button>`
+    ).join('');
     const gymSel = `<div style="margin-bottom:14px">
   <div class="setup-lbl">Gym ändern</div>
   <div class="gym-toggle">
     <button class="gym-btn${s.gym==='evo'?' g-evo':''}" onclick="editSessionGym('${s.id}','evo')">🌿 Evo</button>
     <button class="gym-btn${(s.gym==='bs1'||s.gym==='bs')?' g-bs1':''}" onclick="editSessionGym('${s.id}','bs1')">🏋️ B&S 1</button>
     <button class="gym-btn${s.gym==='bs2'?' g-bs2':''}" onclick="editSessionGym('${s.id}','bs2')">🏋️ B&S 2</button>
+    ${customGymBtns}
   </div>
 </div>`;
     exHtml=gymSel+s.exercises.map((ex,ei)=>`
@@ -1653,7 +1722,7 @@ function deleteCustomGym(id) {
 renderHome();
 show('home');
 document.addEventListener('touchstart', ()=>{ try { getAudio(); } catch(e){} }, {once:true});
-document.addEventListener('keydown', e=>{ if(e.key==='Escape'){closeModal('modal-replace');closeModal('modal-addex');closeModal('modal-exlib');closeModal('modal-dur');closeModal('modal-addgym');closeModal('modal-import');closeModal('modal-export');} });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape'){closeModal('modal-replace');closeModal('modal-addex');closeModal('modal-exlib');closeModal('modal-dur');closeModal('modal-addgym');closeModal('modal-import');closeModal('modal-export');closeModal('modal-addtoplan');} });
 document.getElementById('pause-ov').addEventListener('click', e=>{ if(e.target===e.currentTarget) skipPause(); });
 </script>
 </body>
