@@ -961,7 +961,7 @@ function startSession() {
   const exercises = [];
   PLANS[chosenDay].sections.forEach(sec => {
     sec.exs.forEach((ex, i) => {
-      const w = lastW[ex.id] !== undefined ? lastW[ex.id] : ex.w;
+      const w = lastW[ex.id] !== undefined ? lastW[ex.id] : (lastW['n:'+ex.name] !== undefined ? lastW['n:'+ex.name] : ex.w);
       exercises.push({
         id: ex.id,
         name: ex.name,
@@ -978,7 +978,7 @@ function startSession() {
   customPlanExs.forEach(ce => {
     if (exercises.find(e=>e.name===ce.name)) return;
     // Find last weight from history for this exercise
-    const prev = (db.sessions||[]).filter(s=>s.day===chosenDay&&(s.gym||'evo')===chosenGym);
+    const prev = (db.sessions||[]).filter(s=>s.day===chosenDay&&normGym(s.gym)===normGym(chosenGym));
     let lastWeight = ce.w;
     for (let i=prev.length-1; i>=0; i--) {
       const found = prev[i].exercises.find(e=>e.name===ce.name);
@@ -990,9 +990,9 @@ function startSession() {
   const lastGoals = (() => {
     const prev = (db.sessions||[]).filter(s => s.day === chosenDay);
     if (!prev.length) return {};
-    // Prefer same gym, fall back to any gym for that day
-    const sameGym = prev.filter(s => (s.gym||'evo') === chosenGym);
-    const src = (sameGym.length ? sameGym : prev)[prev.length-1] || prev[prev.length-1];
+    const sameGym = prev.filter(s => normGym(s.gym) === normGym(chosenGym));
+    const arr = sameGym.length ? sameGym : prev;
+    const src = arr[arr.length-1];
     const g = {};
     src.exercises.forEach(ex => { if (ex.nextGoal) g[ex.name] = ex.nextGoal; });
     return g;
@@ -1007,14 +1007,16 @@ function startSession() {
   startSessTimer();
 }
 
+function normGym(g) { return (g==='bs'||g==='bs1') ? 'bs1' : (g||'evo'); }
+
 function getLastWeights(day, gym) {
-  const prev = (db.sessions||[]).filter(s=>s.day===day && (s.gym||'evo')===gym);
+  const prev = (db.sessions||[]).filter(s=>s.day===day && normGym(s.gym)===normGym(gym));
   if (!prev.length) return {};
   const last = prev[prev.length-1];
   const w={};
   last.exercises.forEach(ex=>{
     const s=ex.sets.find(x=>x.done&&x.weight>0)||ex.sets.find(x=>x.weight>0);
-    if(s) w[ex.id]=s.weight;
+    if(s) { w[ex.id]=s.weight; w['n:'+ex.name]=s.weight; }
   });
   return w;
 }
