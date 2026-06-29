@@ -1235,13 +1235,14 @@ function getAllExerciseGroups() {
 
   const history = {};
   (db.sessions||[]).forEach(s => {
+    const gymKey = normGym(s.gym);
     s.exercises.forEach(ex => {
       const valid = ex.sets.filter(x => x.weight > 0 && x.reps > 0);
       if (!valid.length) return;
       const maxW = Math.max(...valid.map(x => x.weight));
       const avgR = Math.round(valid.reduce((a,x) => a+x.reps, 0) / valid.length);
       if (!history[ex.name]) history[ex.name] = {};
-      history[ex.name][s.gym] = {w: maxW, r: avgR, s: valid.length, rest: ex.rest||60};
+      history[ex.name][gymKey] = {w: maxW, r: avgR, s: valid.length, rest: ex.rest||60};
     });
   });
 
@@ -1252,7 +1253,9 @@ function getAllExerciseGroups() {
     if (plan) variants.push({gym: null, s: plan.s, r: plan.r, w: plan.w, rest: plan.rest, source: 'plan'});
     if (history[name]) {
       Object.entries(history[name]).forEach(([gymId, data]) => {
-        variants.push({gym: gymId, s: data.s, r: data.r, w: data.w, rest: data.rest, source: 'history'});
+        // For plan exercises, keep the plan's set count — only weight/reps come from history
+        const sets = plan ? plan.s : data.s;
+        variants.push({gym: gymId, s: sets, r: data.r, w: data.w, rest: data.rest, source: 'history'});
       });
     }
     return {name, variants};
