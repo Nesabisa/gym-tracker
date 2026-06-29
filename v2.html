@@ -841,10 +841,13 @@ function doImport() {
     const existingEx = new Set((cur.customExercises||[]).map(e=>e.name));
     const newEx = (parsed.customExercises||[]).filter(e=>!existingEx.has(e.name));
     cur.customExercises = [...(cur.customExercises||[]), ...newEx];
+    const existingGymIds = new Set((cur.customGyms||[]).map(g=>g.id));
+    const newGyms = (parsed.customGyms||[]).filter(g=>!existingGymIds.has(g.id));
+    cur.customGyms = [...(cur.customGyms||[]), ...newGyms];
     localStorage.setItem('gymtracker', JSON.stringify(cur));
     db = cur;
     closeModal('modal-import');
-    alert(`✓ ${newSessions.length} Sessions importiert!`);
+    alert(`✓ ${newSessions.length} Sessions, ${newGyms.length} Studios importiert!`);
     renderStats();
   } catch(e) {
     alert('Fehler: Ungültiger Text. Bitte nochmal kopieren.');
