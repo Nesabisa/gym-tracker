@@ -1015,12 +1015,14 @@ function normGym(g) { return (g==='bs'||g==='bs1') ? 'bs1' : (g||'evo'); }
 function getLastWeights(day, gym) {
   const prev = (db.sessions||[]).filter(s=>s.day===day && normGym(s.gym)===normGym(gym));
   if (!prev.length) return {};
-  const last = prev[prev.length-1];
-  const w={};
-  last.exercises.forEach(ex=>{
-    const s=ex.sets.find(x=>x.done&&x.weight>0)||ex.sets.find(x=>x.weight>0);
-    if(s) { w[ex.id]=s.weight; w['n:'+ex.name]=s.weight; }
-  });
+  const w = {};
+  for (let i = prev.length-1; i >= 0; i--) {
+    prev[i].exercises.forEach(ex => {
+      if (w[ex.id] !== undefined) return;
+      const s = ex.sets.find(x=>x.done&&x.weight>0) || ex.sets.find(x=>x.weight>0);
+      if (s) { w[ex.id] = s.weight; w['n:'+ex.name] = s.weight; }
+    });
+  }
   return w;
 }
 
