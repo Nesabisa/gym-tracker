@@ -961,10 +961,12 @@ function startSession() {
   const date = document.getElementById('setup-date').value;
   if (!date) return;
   const lastW = getLastWeights(chosenDay, chosenGym);
+  const lastS = getLastSets(chosenDay, chosenGym);
   const exercises = [];
   PLANS[chosenDay].sections.forEach(sec => {
     sec.exs.forEach((ex, i) => {
-      const w = lastW[ex.id] !== undefined ? lastW[ex.id] : (lastW['n:'+ex.name] !== undefined ? lastW['n:'+ex.name] : ex.w);
+      const w = lastW[ex.id] ?? lastW['n:'+ex.name] ?? ex.w;
+      const numSets = lastS[ex.id] ?? lastS['n:'+ex.name] ?? ex.s;
       exercises.push({
         id: ex.id,
         name: ex.name,
@@ -972,7 +974,7 @@ function startSession() {
         opt: ex.opt||false,
         lastW: lastW[ex.id],
         section: i === 0 ? sec.label : null,
-        sets: Array.from({length:ex.s}, ()=>({weight:w, reps:ex.r, done:false}))
+        sets: Array.from({length:numSets}, ()=>({weight:w, reps:ex.r, done:false}))
       });
     });
   });
@@ -987,7 +989,8 @@ function startSession() {
       const found = prev[i].exercises.find(e=>e.name===ce.name);
       if (found) { const ws=found.sets.find(s=>s.done&&s.weight>0)||found.sets.find(s=>s.weight>0); if(ws){lastWeight=ws.weight;break;} }
     }
-    exercises.push({id:'cplan-'+ce.name.replace(/[^a-z0-9]/gi,''), name:ce.name, rest:ce.rest||60, opt:false, lastW:lastWeight!==ce.w?lastWeight:undefined, section:null, sets:Array.from({length:ce.s||3},()=>({weight:lastWeight,reps:ce.r||10,done:false}))});
+    const numSets = lastS['n:'+ce.name] ?? ce.s ?? 3;
+    exercises.push({id:'cplan-'+ce.name.replace(/[^a-z0-9]/gi,''), name:ce.name, rest:ce.rest||60, opt:false, lastW:lastWeight!==ce.w?lastWeight:undefined, section:null, sets:Array.from({length:numSets},()=>({weight:lastWeight,reps:ce.r||10,done:false}))});
   });
 
   const lastGoals = (() => {
@@ -1024,6 +1027,20 @@ function getLastWeights(day, gym) {
     });
   }
   return w;
+}
+
+function getLastSets(day, gym) {
+  const prev = (db.sessions||[]).filter(s=>s.day===day && normGym(s.gym)===normGym(gym));
+  if (!prev.length) return {};
+  const s = {};
+  for (let i = prev.length-1; i >= 0; i--) {
+    prev[i].exercises.forEach(ex => {
+      if (s[ex.id] !== undefined) return;
+      const used = ex.sets.filter(x => x.weight > 0 || x.reps > 0);
+      if (used.length) { s[ex.id] = used.length; s['n:'+ex.name] = used.length; }
+    });
+  }
+  return s;
 }
 
 // ── RENDER ACTIVE ─────────────────────────────────────────────────────────
