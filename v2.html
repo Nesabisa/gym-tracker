@@ -1126,13 +1126,41 @@ function renderCal() {
 // ── TAGES-MODAL (Kalender) ────────────────────────────────────────────────
 let dayModalDate = null;
 let dayActIcon = '✦';
+let editActId = null;
 const ACT_ICONS = ['✦','🧘','🚴','🏃','🏊','🥾','💃','🎾','⚽','🧗','⛷️','🏐','🏸','🏓','🥊','🤸','🛼','⛸️','🏂','🚣','🏄','🚶','🧖','🩰','🥋','⛳','🏇','🛹'];
 
 function openDayModal(ds) {
   dayModalDate = ds;
   dayActIcon = '✦';
+  editActId = null;
   renderDayModal();
   openModal('modal-day');
+}
+function editActivity(id) {
+  const a = (db.activities||[]).find(x=>x.id===id);
+  if (!a) return;
+  editActId = id;
+  dayActIcon = a.icon || '✦';
+  renderDayModal();
+  const inp = document.getElementById('act-inp');
+  if (inp) { inp.value = a.label; inp.focus(); }
+}
+function cancelActEdit() {
+  editActId = null;
+  dayActIcon = '✦';
+  renderDayModal();
+}
+function saveActEdit() {
+  const a = (db.activities||[]).find(x=>x.id===editActId);
+  const v = (document.getElementById('act-inp')?.value||'').trim();
+  if (!a || !v) return;
+  a.label = v;
+  a.icon = dayActIcon;
+  saveDB();
+  editActId = null;
+  dayActIcon = '✦';
+  renderDayModal();
+  renderCal();
 }
 function selActIcon(icon) {
   dayActIcon = icon;
@@ -1158,9 +1186,10 @@ function renderDayModal() {
     }).join('');
   }
   if (acts.length) {
-    html += acts.map(a => `<div class="pe-row">
+    html += acts.map(a => `<div class="pe-row" style="${a.id===editActId?'border:1.5px solid var(--rose);':''}">
       <span style="font-size:14px">${a.icon||'✦'}</span>
       <div class="pe-name">${a.label}</div>
+      <button class="pe-btn" onclick="editActivity('${a.id}')">✎</button>
       <button class="pe-btn" style="color:#c0392b;border-color:#f5c0bb" onclick="delActivity('${a.id}')">🗑</button>
     </div>`).join('');
   }
@@ -1178,14 +1207,16 @@ function renderDayModal() {
     ? `<div class="act-chips">${recent.slice(0,6).map(a=>`<button class="act-chip" onclick="addActivity('${a.label.replace(/'/g,"\\'")}','${a.icon||'✦'}')">${a.icon||'✦'} ${a.label}</button>`).join('')}</div>`
     : '';
 
-  html += `<div class="m-label" style="margin-top:14px">Aktivität eintragen</div>
-    ${chips}
+  const editing = !!editActId;
+  html += `<div class="m-label" style="margin-top:14px">${editing?'Aktivität bearbeiten':'Aktivität eintragen'}</div>
+    ${editing?'':chips}
     ${[ACT_ICONS.slice(0, Math.ceil(ACT_ICONS.length/2)), ACT_ICONS.slice(Math.ceil(ACT_ICONS.length/2))].map(row =>
       `<div class="emoji-row">${row.map(ic=>`<button class="emoji-btn${ic===dayActIcon?' sel':''}" data-icon="${ic}" onclick="selActIcon('${ic}')">${ic}</button>`).join('')}</div>`
     ).join('')}
     <input type="text" class="m-inp" id="act-inp" placeholder="z.B. Yoga, Spinning, Joggen..." autocomplete="off"
-      onkeydown="if(event.key==='Enter')addActivity()">
-    <button class="m-save" onclick="addActivity()">Hinzufügen ✓</button>`;
+      onkeydown="if(event.key==='Enter')${editing?'saveActEdit()':'addActivity()'}">
+    <button class="m-save" onclick="${editing?'saveActEdit()':'addActivity()'}">${editing?'Speichern ✓':'Hinzufügen ✓'}</button>
+    ${editing?`<button class="m-cancel" onclick="cancelActEdit()">Abbrechen</button>`:''}`;
 
   document.getElementById('day-body').innerHTML = html;
 }
@@ -1200,6 +1231,7 @@ function addActivity(label, icon) {
 }
 function delActivity(id) {
   db.activities = (db.activities||[]).filter(a=>a.id!==id);
+  if (editActId === id) { editActId = null; dayActIcon = '✦'; }
   saveDB();
   renderDayModal();
   renderCal();
