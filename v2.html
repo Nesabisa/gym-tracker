@@ -127,8 +127,6 @@ body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--text);min
 .goal-btn{font-size:10px;padding:3px 8px;border:1.5px solid var(--border);border-radius:7px;background:none;color:var(--tl);cursor:pointer;font-family:'Jost',sans-serif;white-space:nowrap;transition:all .15s;}
 .goal-btn.gon{background:var(--sl);border-color:var(--sage);color:var(--sd);}
 .goal-row{padding:7px 13px;border-top:1px solid var(--border);display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
-.opt-box{width:24px;height:24px;border-radius:6px;border:1.5px solid var(--border);background:var(--cream);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;flex-shrink:0;transition:all .18s;color:transparent;padding:0;line-height:1;}
-.opt-box.on{background:#d4edda;border-color:#6a9960;color:#6a9960;}
 
 /* DETAIL */
 .detail-meta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
@@ -167,7 +165,6 @@ body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--text);min
 .chart-meta{font-size:11px;color:var(--tl);margin-left:auto;}
 .chart-svg{width:100%;display:block;overflow:visible;}
 .stats-empty{text-align:center;padding:48px 20px;color:var(--tl);}
-.stats-empty .big{font-size:40px;margin-bottom:10px;}
 .stats-empty .big{font-size:40px;margin-bottom:10px;}
 
 /* PAUSE OVERLAY */
@@ -573,8 +570,15 @@ let replaceIdx = null;
 let editMode = false;
 let editSessionId = null;
 let exLibExpanded = new Set();
+let _exGroups = null; // Cache für getAllExerciseGroups, wird bei saveDB invalidiert
 
-function saveDB() { try { localStorage.setItem('gymtracker', JSON.stringify(db)); } catch(e) {} }
+function saveDB() { try { localStorage.setItem('gymtracker', JSON.stringify(db)); } catch(e) {} _exGroups = null; }
+
+// Sessions chronologisch (Datum, dann Erstellzeit) — Einfüge-Reihenfolge ist
+// nach Import/Nachtragen nicht verlässlich
+function sessionsByDate() {
+  return (db.sessions||[]).slice().sort((a,b) => a.date.localeCompare(b.date) || ((+a.id||0)-(+b.id||0)));
+}
 function saveActive() { try { if(session) localStorage.setItem('gymtracker_active', JSON.stringify(session)); else localStorage.removeItem('gymtracker_active'); } catch(e) {} }
 function loadActive() { try { return JSON.parse(localStorage.getItem('gymtracker_active')||'null'); } catch(e) { return null; } }
 
@@ -657,7 +661,7 @@ function renderHome() {
       resumeBanner + `<div class="empty"><div class="big">💪</div><p>Noch keine Sessions gespeichert.<br>Tippe + um zu starten.</p></div>`;
     return;
   }
-  document.getElementById('home-log').innerHTML = resumeBanner + [...sessions].reverse().map(s => {
+  document.getElementById('home-log').innerHTML = resumeBanner + sessionsByDate().reverse().map(s => {
     const gi = gymInfo(s.gym);
     const gym = `<span class="gym-pill ${gi.cls}">${gi.icon} ${gi.label}</span>`;
     return `<div class="s-card" onclick="showDetail('${s.id}')">
@@ -705,8 +709,8 @@ function renderStats() {
 
   // Build exercise map: { exName: { gymId: [{date,w,reps}] } }
   const exMap = {};
-  sessions.forEach(s => {
-    const gymId = s.gym || 'evo';
+  sorted.forEach(s => {
+    const gymId = normGym(s.gym);
     s.exercises.forEach(ex => {
       const validSets = ex.sets.filter(x=>x.weight>0 && x.reps>0);
       if (!validSets.length) return;
@@ -747,8 +751,6 @@ function renderStats() {
       <button onclick="openExport()" style="font-family:'Jost',sans-serif;font-size:13px;padding:10px 22px;border:1.5px solid var(--border);border-radius:13px;background:var(--white);color:var(--tl);cursor:pointer;">📤 Exportieren</button>
     </div>`;
 }
-
-function pickEx(i) { statsEx=window._statsExNames[i]; renderStats(); }
 
 function filterExDrop(val) {
   const names = window._statsExNames || [];
@@ -844,8 +846,19 @@ function doImport() {
     const existingGymIds = new Set((cur.customGyms||[]).map(g=>g.id));
     const newGyms = (parsed.customGyms||[]).filter(g=>!existingGymIds.has(g.id));
     cur.customGyms = [...(cur.customGyms||[]), ...newGyms];
+    // Merge pinned plan exercises (📌) per day
+    if (parsed.customPlanExercises) {
+      if (!cur.customPlanExercises) cur.customPlanExercises = {};
+      Object.entries(parsed.customPlanExercises).forEach(([day, exs]) => {
+        if (!cur.customPlanExercises[day]) cur.customPlanExercises[day] = [];
+        const names = new Set(cur.customPlanExercises[day].map(e=>e.name));
+        exs.forEach(e => { if (!names.has(e.name)) cur.customPlanExercises[day].push(e); });
+      });
+    }
+    cur.sessions.sort((a,b) => a.date.localeCompare(b.date) || ((+a.id||0)-(+b.id||0)));
     localStorage.setItem('gymtracker', JSON.stringify(cur));
     db = cur;
+    _exGroups = null;
     closeModal('modal-import');
     alert(`✓ ${newSessions.length} Sessions, ${newGyms.length} Studios importiert!`);
     renderStats();
@@ -972,7 +985,7 @@ function startSession() {
         name: ex.name,
         rest: ex.rest,
         opt: ex.opt||false,
-        lastW: lastW[ex.id],
+        lastW: lastW[ex.id] ?? lastW['n:'+ex.name],
         section: i === 0 ? sec.label : null,
         sets: Array.from({length:numSets}, ()=>({weight:w, reps:ex.r, done:false}))
       });
@@ -983,7 +996,7 @@ function startSession() {
   customPlanExs.forEach(ce => {
     if (exercises.find(e=>e.name===ce.name)) return;
     // Find last weight from history for this exercise
-    const prev = (db.sessions||[]).filter(s=>s.day===chosenDay&&normGym(s.gym)===normGym(chosenGym));
+    const prev = sessionsByDate().filter(s=>s.day===chosenDay&&normGym(s.gym)===normGym(chosenGym));
     let lastWeight = ce.w;
     for (let i=prev.length-1; i>=0; i--) {
       const found = prev[i].exercises.find(e=>e.name===ce.name);
@@ -994,7 +1007,7 @@ function startSession() {
   });
 
   const lastGoals = (() => {
-    const prev = (db.sessions||[]).filter(s => s.day === chosenDay);
+    const prev = sessionsByDate().filter(s => s.day === chosenDay);
     if (!prev.length) return {};
     const sameGym = prev.filter(s => normGym(s.gym) === normGym(chosenGym));
     const arr = sameGym.length ? sameGym : prev;
@@ -1016,7 +1029,7 @@ function startSession() {
 function normGym(g) { return (g==='bs'||g==='bs1') ? 'bs1' : (g||'evo'); }
 
 function getLastWeights(day, gym) {
-  const prev = (db.sessions||[]).filter(s=>s.day===day && normGym(s.gym)===normGym(gym));
+  const prev = sessionsByDate().filter(s=>s.day===day && normGym(s.gym)===normGym(gym));
   if (!prev.length) return {};
   const w = {};
   for (let i = prev.length-1; i >= 0; i--) {
@@ -1030,7 +1043,7 @@ function getLastWeights(day, gym) {
 }
 
 function getLastSets(day, gym) {
-  const prev = (db.sessions||[]).filter(s=>s.day===day && normGym(s.gym)===normGym(gym));
+  const prev = sessionsByDate().filter(s=>s.day===day && normGym(s.gym)===normGym(gym));
   if (!prev.length) return {};
   const s = {};
   for (let i = prev.length-1; i >= 0; i--) {
@@ -1202,12 +1215,6 @@ function editRestInline(ei) {
   reRenderEx(ei);
 }
 
-function togOpt(ei) {
-  session.exercises[ei].opt = !session.exercises[ei].opt;
-  saveActive();
-  reRenderEx(ei);
-}
-
 function setGoal(ei, field, val) {
   if (!session.exercises[ei].nextGoal) session.exercises[ei].nextGoal = {};
   const cur = session.exercises[ei].nextGoal[field];
@@ -1231,6 +1238,7 @@ function saveReplace() {
   const v=document.getElementById('rep-inp').value.trim();
   if(!v) return;
   session.exercises[replaceIdx].name=v;
+  saveActive();
   const el=document.getElementById(`en-${replaceIdx}`);
   if(el) el.textContent=v;
   closeModal('modal-replace');
@@ -1251,7 +1259,7 @@ function getAllExerciseGroups() {
   });
 
   const history = {};
-  (db.sessions||[]).forEach(s => {
+  sessionsByDate().forEach(s => {
     const gymKey = normGym(s.gym);
     s.exercises.forEach(ex => {
       const valid = ex.sets.filter(x => x.weight > 0 && x.reps > 0);
@@ -1279,6 +1287,11 @@ function getAllExerciseGroups() {
   });
 }
 
+function exGroupsCached() {
+  if (!_exGroups) _exGroups = getAllExerciseGroups();
+  return _exGroups;
+}
+
 function openAddEx() {
   exLibExpanded.clear();
   const inp = document.getElementById('exlib-search');
@@ -1293,7 +1306,7 @@ function openNewEx() {
   setTimeout(()=>document.getElementById('addex-name').focus(),100);
 }
 function renderExLib(query) {
-  const groups = getAllExerciseGroups();
+  const groups = exGroupsCached();
   const q = (query||'').toLowerCase().trim();
   const filtered = q ? groups.filter(g => g.name.toLowerCase().includes(q)) : groups;
   const list = document.getElementById('exlib-list');
@@ -1345,7 +1358,7 @@ function toggleExLib(name) {
   renderExLib(document.getElementById('exlib-search')?.value||'');
 }
 function getLastGoalForExercise(name) {
-  const sessions = db.sessions || [];
+  const sessions = sessionsByDate();
   for (let i = sessions.length - 1; i >= 0; i--) {
     const ex = sessions[i].exercises.find(e => e.name === name && e.nextGoal);
     if (ex) return ex.nextGoal;
@@ -1378,7 +1391,7 @@ function addFromLibrary(id, name, s, r, w, rest) {
 function onAddExName(val) {
   const dl = document.getElementById('exnames-dl');
   if (dl) {
-    const groups = getAllExerciseGroups();
+    const groups = exGroupsCached();
     const q = val.toLowerCase();
     dl.innerHTML = groups
       .filter(g => g.name.toLowerCase().includes(q))
@@ -1389,7 +1402,7 @@ function onAddExName(val) {
 }
 
 function autoFillAddEx(name) {
-  const groups = getAllExerciseGroups();
+  const groups = exGroupsCached();
   const match = groups.find(g => g.name.toLowerCase() === name.toLowerCase());
   if (!match) return;
   const src = match.variants.find(v => v.source==='history') || match.variants[0];
@@ -1668,7 +1681,7 @@ function closeModal(id) { document.getElementById(id).classList.remove('on'); do
 
 // ── UTILS ─────────────────────────────────────────────────────────────────
 function fmtTime(sec) { return String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0'); }
-function fmtDur(sec) { return sec?Math.round(sec/60)+' min':'–'; }
+function fmtDur(sec) { return sec?Math.max(1,Math.round(sec/60))+' min':'–'; }
 function fmtDate(d) { if(!d) return ''; const[y,m,day]=d.split('-'); return day+'.'+m+'.'+y; }
 function fmtDateShort(d) { if(!d) return ''; const[,m,day]=d.split('-'); return day+'.'+m; }
 
@@ -1738,6 +1751,8 @@ function saveAddGym() {
 }
 
 function deleteCustomGym(id) {
+  const cg = (db.customGyms||[]).find(x=>x.id===id);
+  if(!confirm('Gym "'+(cg?cg.label:'')+'" wirklich löschen?')) return;
   db.customGyms = (db.customGyms||[]).filter(x=>x.id!==id);
   saveDB();
   closeModal('modal-addgym');
@@ -1749,7 +1764,7 @@ function deleteCustomGym(id) {
 renderHome();
 show('home');
 document.addEventListener('touchstart', ()=>{ try { getAudio(); } catch(e){} }, {once:true});
-document.addEventListener('keydown', e=>{ if(e.key==='Escape'){closeModal('modal-replace');closeModal('modal-addex');closeModal('modal-exlib');closeModal('modal-dur');closeModal('modal-addgym');closeModal('modal-import');closeModal('modal-export');closeModal('modal-addtoplan');} });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') document.querySelectorAll('.modal-ov.on').forEach(m=>closeModal(m.id)); });
 document.getElementById('pause-ov').addEventListener('click', e=>{ if(e.target===e.currentTarget) skipPause(); });
 </script>
 </body>
