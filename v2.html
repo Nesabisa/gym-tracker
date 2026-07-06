@@ -183,6 +183,10 @@ body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--text);min
 .cal-cell.act{background:#f8f0e3;border-color:#d9c4a3;color:#a08050;}
 .act-chip{font-size:11px;padding:6px 12px;border:1.5px solid var(--border);border-radius:16px;background:var(--white);color:var(--tm);cursor:pointer;font-family:'Jost',sans-serif;white-space:nowrap;}
 .act-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+.emoji-row{display:flex;gap:5px;overflow-x:auto;padding-bottom:6px;margin-bottom:8px;scrollbar-width:none;}
+.emoji-row::-webkit-scrollbar{display:none;}
+.emoji-btn{font-size:17px;width:38px;height:38px;flex-shrink:0;border:1.5px solid var(--border);border-radius:10px;background:var(--white);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
+.emoji-btn.sel{background:var(--rl);border-color:var(--rose);}
 .cal-ltr{font-family:'Cormorant Garamond',serif;font-size:15px;font-weight:600;line-height:1;}
 .cal-legend{display:flex;gap:14px;justify-content:center;margin-top:16px;font-size:11px;color:var(--tm);flex-wrap:wrap;}
 .cal-legend span{display:inline-flex;align-items:center;gap:5px;}
@@ -1098,7 +1102,7 @@ function renderCal() {
     if (acts && acts.length) {
       actCount += acts.length;
       if (!cls) cls = ' has act';
-      marks += '✦';
+      marks += acts.slice(0,2).map(a=>a.icon||'✦').join('');
     }
     cells += `<div class="cal-cell${cls}${today}" onclick="openDayModal('${ds}')"><span>${d}</span>${marks?`<span class="cal-ltr">${marks}</span>`:''}</div>`;
   }
@@ -1121,11 +1125,18 @@ function renderCal() {
 
 // ── TAGES-MODAL (Kalender) ────────────────────────────────────────────────
 let dayModalDate = null;
+let dayActIcon = '✦';
+const ACT_ICONS = ['✦','🧘','🚴','🏃','🏊','🥾','💃','🎾','⚽','🧗','⛷️','🏐'];
 
 function openDayModal(ds) {
   dayModalDate = ds;
+  dayActIcon = '✦';
   renderDayModal();
   openModal('modal-day');
+}
+function selActIcon(icon) {
+  dayActIcon = icon;
+  document.querySelectorAll('.emoji-btn').forEach(b => b.classList.toggle('sel', b.dataset.icon === icon));
 }
 function renderDayModal() {
   document.getElementById('day-title').textContent = fmtDate(dayModalDate);
@@ -1148,7 +1159,7 @@ function renderDayModal() {
   }
   if (acts.length) {
     html += acts.map(a => `<div class="pe-row">
-      <span style="font-size:14px">✦</span>
+      <span style="font-size:14px">${a.icon||'✦'}</span>
       <div class="pe-name">${a.label}</div>
       <button class="pe-btn" style="color:#c0392b;border-color:#f5c0bb" onclick="delActivity('${a.id}')">🗑</button>
     </div>`).join('');
@@ -1157,25 +1168,30 @@ function renderDayModal() {
     html += `<p style="font-size:13px;color:var(--tl);margin-bottom:12px;text-align:center">Noch nichts eingetragen.</p>`;
   }
 
-  // Schnellauswahl: zuletzt benutzte Aktivitäten
-  const recent = [...new Set((db.activities||[]).slice().reverse().map(a=>a.label))].slice(0,6);
+  // Schnellauswahl: zuletzt benutzte Aktivitäten (mit ihrem Symbol)
+  const seen = new Set();
+  const recent = [];
+  (db.activities||[]).slice().reverse().forEach(a => {
+    if (!seen.has(a.label)) { seen.add(a.label); recent.push(a); }
+  });
   const chips = recent.length
-    ? `<div class="act-chips">${recent.map(l=>`<button class="act-chip" onclick="addActivity('${l.replace(/'/g,"\\'")}')">✦ ${l}</button>`).join('')}</div>`
+    ? `<div class="act-chips">${recent.slice(0,6).map(a=>`<button class="act-chip" onclick="addActivity('${a.label.replace(/'/g,"\\'")}','${a.icon||'✦'}')">${a.icon||'✦'} ${a.label}</button>`).join('')}</div>`
     : '';
 
   html += `<div class="m-label" style="margin-top:14px">Aktivität eintragen</div>
     ${chips}
+    <div class="emoji-row">${ACT_ICONS.map(ic=>`<button class="emoji-btn${ic===dayActIcon?' sel':''}" data-icon="${ic}" onclick="selActIcon('${ic}')">${ic}</button>`).join('')}</div>
     <input type="text" class="m-inp" id="act-inp" placeholder="z.B. Yoga, Spinning, Joggen..." autocomplete="off"
       onkeydown="if(event.key==='Enter')addActivity()">
     <button class="m-save" onclick="addActivity()">Hinzufügen ✓</button>`;
 
   document.getElementById('day-body').innerHTML = html;
 }
-function addActivity(label) {
+function addActivity(label, icon) {
   const v = (label || document.getElementById('act-inp')?.value || '').trim();
   if (!v) return;
   if (!db.activities) db.activities = [];
-  db.activities.push({id:'act-'+Date.now(), date:dayModalDate, label:v});
+  db.activities.push({id:'act-'+Date.now(), date:dayModalDate, label:v, icon: icon || dayActIcon});
   saveDB();
   renderDayModal();
   renderCal();
