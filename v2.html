@@ -1126,7 +1126,7 @@ function renderCal() {
 // ── TAGES-MODAL (Kalender) ────────────────────────────────────────────────
 let dayModalDate = null;
 let dayActIcon = '✦';
-const ACT_ICONS = ['✦','🧘','🚴','🏃','🏊','🥾','💃','🎾','⚽','🧗','⛷️','🏐'];
+const ACT_ICONS = ['✦','🧘','🚴','🏃','🏊','🥾','💃','🎾','⚽','🧗','⛷️','🏐','🏸','🏓','🥊','🤸','🛼','⛸️','🏂','🚣','🏄','🚶','🧖','🩰','🥋','⛳','🏇','🛹'];
 
 function openDayModal(ds) {
   dayModalDate = ds;
@@ -1180,7 +1180,9 @@ function renderDayModal() {
 
   html += `<div class="m-label" style="margin-top:14px">Aktivität eintragen</div>
     ${chips}
-    <div class="emoji-row">${ACT_ICONS.map(ic=>`<button class="emoji-btn${ic===dayActIcon?' sel':''}" data-icon="${ic}" onclick="selActIcon('${ic}')">${ic}</button>`).join('')}</div>
+    ${[ACT_ICONS.slice(0, Math.ceil(ACT_ICONS.length/2)), ACT_ICONS.slice(Math.ceil(ACT_ICONS.length/2))].map(row =>
+      `<div class="emoji-row">${row.map(ic=>`<button class="emoji-btn${ic===dayActIcon?' sel':''}" data-icon="${ic}" onclick="selActIcon('${ic}')">${ic}</button>`).join('')}</div>`
+    ).join('')}
     <input type="text" class="m-inp" id="act-inp" placeholder="z.B. Yoga, Spinning, Joggen..." autocomplete="off"
       onkeydown="if(event.key==='Enter')addActivity()">
     <button class="m-save" onclick="addActivity()">Hinzufügen ✓</button>`;
