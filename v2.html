@@ -180,6 +180,9 @@ body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--text);min
 .cal-cell.bgA{background:var(--rl);border-color:var(--rose);color:var(--rd);}
 .cal-cell.bgB{background:var(--sl);border-color:var(--sage);color:var(--sd);}
 .cal-cell.bgC{background:var(--ll);border-color:var(--lav);color:var(--ld);}
+.cal-cell.act{background:#f8f0e3;border-color:#d9c4a3;color:#a08050;}
+.act-chip{font-size:11px;padding:6px 12px;border:1.5px solid var(--border);border-radius:16px;background:var(--white);color:var(--tm);cursor:pointer;font-family:'Jost',sans-serif;white-space:nowrap;}
+.act-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
 .cal-ltr{font-family:'Cormorant Garamond',serif;font-size:15px;font-weight:600;line-height:1;}
 .cal-legend{display:flex;gap:14px;justify-content:center;margin-top:16px;font-size:11px;color:var(--tm);flex-wrap:wrap;}
 .cal-legend span{display:inline-flex;align-items:center;gap:5px;}
@@ -461,6 +464,16 @@ body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--text);min
       </button>
     </div>
     <button class="m-cancel" onclick="closeModal('modal-addtoplan')">Abbrechen</button>
+  </div>
+</div>
+
+<!-- MODAL: TAG (Kalender) -->
+<div class="modal-ov" id="modal-day">
+  <div class="msheet">
+    <div class="m-handle"></div>
+    <div class="m-title" id="day-title"></div>
+    <div id="day-body"></div>
+    <button class="m-cancel" onclick="closeModal('modal-day')">Schließen</button>
   </div>
 </div>
 
@@ -949,6 +962,9 @@ function doImport() {
         exs.forEach(e => { if (!names.has(e.name)) cur.customPlanExercises[day].push(e); });
       });
     }
+    // Merge activities
+    const actIds = new Set((cur.activities||[]).map(a=>a.id));
+    cur.activities = [...(cur.activities||[]), ...(parsed.activities||[]).filter(a=>!actIds.has(a.id))];
     // Merge hidden plan exercises per day
     if (parsed.hiddenPlanExercises) {
       if (!cur.hiddenPlanExercises) cur.hiddenPlanExercises = {};
@@ -1081,20 +1097,29 @@ function renderCal() {
   const t = new Date();
   const todayStr = `${t.getFullYear()}-${pad(t.getMonth()+1)}-${pad(t.getDate())}`;
 
+  const actByDate = {};
+  (db.activities||[]).forEach(a => { (actByDate[a.date] = actByDate[a.date]||[]).push(a); });
+
   let cells = ['Mo','Di','Mi','Do','Fr','Sa','So'].map(w=>`<div class="cal-wd">${w}</div>`).join('');
   for (let i=0;i<offset;i++) cells += '<div class="cal-cell off"></div>';
-  let monthCount = 0;
+  let monthCount = 0, actCount = 0;
   for (let d=1; d<=daysInMonth; d++) {
     const ds = `${calY}-${pad(calM+1)}-${pad(d)}`;
     const list = byDate[ds];
+    const acts = actByDate[ds];
     const today = ds===todayStr ? ' today' : '';
+    let cls = '', marks = '';
     if (list && list.length) {
       monthCount += list.length;
-      const s = list[list.length-1];
-      cells += `<div class="cal-cell has bg${s.day}${today}" onclick="showDetail('${s.id}')"><span>${d}</span><span class="cal-ltr">${list.map(x=>x.day).join('')}</span></div>`;
-    } else {
-      cells += `<div class="cal-cell${today}"><span>${d}</span></div>`;
+      cls = ' has bg' + list[list.length-1].day;
+      marks = list.map(x=>x.day).join('');
     }
+    if (acts && acts.length) {
+      actCount += acts.length;
+      if (!cls) cls = ' has act';
+      marks += '✦';
+    }
+    cells += `<div class="cal-cell${cls}${today}" onclick="openDayModal('${ds}')"><span>${d}</span>${marks?`<span class="cal-ltr">${marks}</span>`:''}</div>`;
   }
 
   cnt.innerHTML = `
@@ -1108,8 +1133,77 @@ function renderCal() {
       <span><span class="cal-dot" style="background:var(--rl);border:1px solid var(--rose)"></span>A · ${PLANS.A.name}</span>
       <span><span class="cal-dot" style="background:var(--sl);border:1px solid var(--sage)"></span>B · ${PLANS.B.name}</span>
       <span><span class="cal-dot" style="background:var(--ll);border:1px solid var(--lav)"></span>C · ${PLANS.C.name}</span>
+      <span><span class="cal-dot" style="background:#f8f0e3;border:1px solid #d9c4a3"></span>✦ Aktivität</span>
     </div>
-    <div style="text-align:center;margin-top:12px;font-size:12px;color:var(--tl)">${monthCount} Training${monthCount!==1?'s':''} im ${monthNames[calM]}</div>`;
+    <div style="text-align:center;margin-top:12px;font-size:12px;color:var(--tl)">${monthCount} Training${monthCount!==1?'s':''}${actCount?` · ${actCount} Aktivität${actCount!==1?'en':''}`:''} im ${monthNames[calM]}</div>`;
+}
+
+// ── TAGES-MODAL (Kalender) ────────────────────────────────────────────────
+let dayModalDate = null;
+
+function openDayModal(ds) {
+  dayModalDate = ds;
+  renderDayModal();
+  openModal('modal-day');
+}
+function renderDayModal() {
+  document.getElementById('day-title').textContent = fmtDate(dayModalDate);
+  const sessions = (db.sessions||[]).filter(s=>s.date===dayModalDate);
+  const acts = (db.activities||[]).filter(a=>a.date===dayModalDate);
+
+  let html = '';
+  if (sessions.length) {
+    html += sessions.map(s => {
+      const gi = gymInfo(s.gym);
+      return `<div class="s-card" style="margin-bottom:6px" onclick="closeModal('modal-day');showDetail('${s.id}')">
+        <div class="sbadge bg${s.day}">${s.day}</div>
+        <div class="s-info">
+          <div class="s-name">${PLANS[s.day].name}<span class="gym-pill ${gi.cls}">${gi.icon} ${gi.label}</span></div>
+          <div class="s-meta">${fmtDur(s.duration)}</div>
+        </div>
+        <span style="color:var(--tl);font-size:18px">›</span>
+      </div>`;
+    }).join('');
+  }
+  if (acts.length) {
+    html += acts.map(a => `<div class="pe-row">
+      <span style="font-size:14px">✦</span>
+      <div class="pe-name">${a.label}</div>
+      <button class="pe-btn" style="color:#c0392b;border-color:#f5c0bb" onclick="delActivity('${a.id}')">🗑</button>
+    </div>`).join('');
+  }
+  if (!sessions.length && !acts.length) {
+    html += `<p style="font-size:13px;color:var(--tl);margin-bottom:12px;text-align:center">Noch nichts eingetragen.</p>`;
+  }
+
+  // Schnellauswahl: zuletzt benutzte Aktivitäten
+  const recent = [...new Set((db.activities||[]).slice().reverse().map(a=>a.label))].slice(0,6);
+  const chips = recent.length
+    ? `<div class="act-chips">${recent.map(l=>`<button class="act-chip" onclick="addActivity('${l.replace(/'/g,"\\'")}')">✦ ${l}</button>`).join('')}</div>`
+    : '';
+
+  html += `<div class="m-label" style="margin-top:14px">Aktivität eintragen</div>
+    ${chips}
+    <input type="text" class="m-inp" id="act-inp" placeholder="z.B. Yoga, Spinning, Joggen..." autocomplete="off"
+      onkeydown="if(event.key==='Enter')addActivity()">
+    <button class="m-save" onclick="addActivity()">Hinzufügen ✓</button>`;
+
+  document.getElementById('day-body').innerHTML = html;
+}
+function addActivity(label) {
+  const v = (label || document.getElementById('act-inp')?.value || '').trim();
+  if (!v) return;
+  if (!db.activities) db.activities = [];
+  db.activities.push({id:'act-'+Date.now(), date:dayModalDate, label:v});
+  saveDB();
+  renderDayModal();
+  renderCal();
+}
+function delActivity(id) {
+  db.activities = (db.activities||[]).filter(a=>a.id!==id);
+  saveDB();
+  renderDayModal();
+  renderCal();
 }
 
 // ── PLAN EDITOR ───────────────────────────────────────────────────────────
@@ -1997,7 +2091,9 @@ function mergeDb(a, b) {
     const hd=[...new Set([...((a.hiddenPlanExercises||{})[d]||[]), ...((b.hiddenPlanExercises||{})[d]||[])])];
     if (hd.length) hiddenPlanExercises[d]=hd;
   });
-  return {sessions, customExercises, customGyms, customPlanExercises, hiddenPlanExercises};
+  const actI = new Set((a.activities||[]).map(x=>x.id));
+  const activities = [...(a.activities||[]), ...(b.activities||[]).filter(x=>!actI.has(x.id))];
+  return {sessions, customExercises, customGyms, customPlanExercises, hiddenPlanExercises, activities};
 }
 
 // Wird vom Firebase-Modul aufgerufen wenn neuere Daten aus der Cloud kommen
