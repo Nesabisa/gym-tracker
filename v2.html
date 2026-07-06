@@ -167,6 +167,37 @@ body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--text);min
 .stats-empty{text-align:center;padding:48px 20px;color:var(--tl);}
 .stats-empty .big{font-size:40px;margin-bottom:10px;}
 
+/* KALENDER */
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.cal-title{font-family:'Cormorant Garamond',serif;font-size:21px;font-weight:400;}
+.cal-nav{width:34px;height:34px;border-radius:50%;border:1px solid var(--border);background:var(--white);cursor:pointer;font-size:15px;color:var(--tm);}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+.cal-wd{text-align:center;font-size:10px;color:var(--tl);padding:4px 0;letter-spacing:1px;}
+.cal-cell{aspect-ratio:1;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:11px;color:var(--tm);background:var(--white);border:1px solid var(--border);}
+.cal-cell.off{background:none;border:none;}
+.cal-cell.today{border:1.5px solid var(--rd);}
+.cal-cell.has{cursor:pointer;}
+.cal-cell.bgA{background:var(--rl);border-color:var(--rose);color:var(--rd);}
+.cal-cell.bgB{background:var(--sl);border-color:var(--sage);color:var(--sd);}
+.cal-cell.bgC{background:var(--ll);border-color:var(--lav);color:var(--ld);}
+.cal-ltr{font-family:'Cormorant Garamond',serif;font-size:15px;font-weight:600;line-height:1;}
+.cal-legend{display:flex;gap:14px;justify-content:center;margin-top:16px;font-size:11px;color:var(--tm);flex-wrap:wrap;}
+.cal-legend span{display:inline-flex;align-items:center;gap:5px;}
+.cal-dot{width:10px;height:10px;border-radius:3px;display:inline-block;}
+
+/* PLAN EDITOR */
+.pe-tabs{display:flex;gap:8px;margin-bottom:14px;}
+.pe-tab{flex:1;padding:9px 4px;border:1.5px solid var(--border);border-radius:11px;background:var(--white);font-family:'Jost',sans-serif;font-size:13px;color:var(--tl);cursor:pointer;}
+.pe-tab.aA{background:var(--rl);border-color:var(--rose);color:var(--rd);}
+.pe-tab.aB{background:var(--sl);border-color:var(--sage);color:var(--sd);}
+.pe-tab.aC{background:var(--ll);border-color:var(--lav);color:var(--ld);}
+.pe-row{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--cream);border-radius:10px;margin-bottom:5px;}
+.pe-row.hidden-ex{opacity:.45;}
+.pe-name{flex:1;font-size:13px;min-width:0;}
+.pe-name .strike{text-decoration:line-through;}
+.pe-btn{font-size:11px;padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;background:var(--white);color:var(--tm);cursor:pointer;font-family:'Jost',sans-serif;white-space:nowrap;flex-shrink:0;}
+#pe-list{max-height:55vh;overflow-y:auto;}
+
 /* PAUSE OVERLAY */
 .pause-ov{display:none;position:fixed;inset:0;z-index:100;background:rgba(58,46,46,.52);backdrop-filter:blur(6px);align-items:flex-end;justify-content:center;}
 .pause-ov.on{display:flex;}
@@ -223,6 +254,15 @@ body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--text);min
   <div class="cnt" id="stats-content"></div>
 </div>
 
+<!-- KALENDER -->
+<div class="screen" id="screen-cal">
+  <div class="hdr">
+    <div class="eyebrow">Kalender</div>
+    <h1 class="h1">Deine <em>Trainings</em></h1>
+  </div>
+  <div class="cnt" id="cal-content"></div>
+</div>
+
 <!-- SETUP -->
 <div class="screen" id="screen-setup">
   <div class="hdr">
@@ -240,7 +280,7 @@ body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--text);min
       <div id="gym-toggle-wrap"></div>
     </div>
     <div class="setup-sec">
-      <div class="setup-lbl">Trainingstag</div>
+      <div class="setup-lbl" style="display:flex;align-items:center;justify-content:space-between">Trainingstag <button onclick="openPlanEdit()" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:8px;background:none;cursor:pointer;font-family:'Jost',sans-serif;color:var(--tl)">✎ Plan bearbeiten</button></div>
       <div class="day-grid">
         <div class="day-card" id="dc-A" onclick="selDay('A')">
           <div class="day-ltr" style="color:var(--rd)">A</div>
@@ -298,6 +338,9 @@ body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--text);min
 <nav class="bnav" id="bnav">
   <button class="bnav-btn nav-active" id="nav-home" onclick="goHome()">
     <span class="icon">📋</span>Trainings
+  </button>
+  <button class="bnav-btn" id="nav-cal" onclick="goCal()">
+    <span class="icon">📅</span>Kalender
   </button>
   <button class="bnav-btn" id="nav-stats" onclick="goStats()">
     <span class="icon">📊</span>Statistik
@@ -382,6 +425,17 @@ body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--text);min
     <button class="m-save" id="addgym-save" onclick="saveAddGym()">Hinzufügen ✓</button>
     <button class="del-session-btn" id="addgym-delete" style="display:none" onclick="deleteCustomGym(editingGymId)">🗑 Gym löschen</button>
     <button class="m-cancel" onclick="closeModal('modal-addgym')">Abbrechen</button>
+  </div>
+</div>
+
+<!-- MODAL: PLAN EDITOR -->
+<div class="modal-ov" id="modal-planedit">
+  <div class="msheet">
+    <div class="m-handle"></div>
+    <div class="m-title">Plan bearbeiten</div>
+    <div class="pe-tabs" id="pe-tabs"></div>
+    <div id="pe-list"></div>
+    <button class="m-cancel" onclick="closeModal('modal-planedit')">Fertig</button>
   </div>
 </div>
 
@@ -586,9 +640,10 @@ function loadActive() { try { return JSON.parse(localStorage.getItem('gymtracker
 function show(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-'+id).classList.add('active');
-  const hasNav = id==='home' || id==='stats';
+  const hasNav = id==='home' || id==='stats' || id==='cal';
   document.getElementById('bnav').style.display = hasNav ? 'flex' : 'none';
   document.getElementById('nav-home').classList.toggle('nav-active', id==='home');
+  document.getElementById('nav-cal').classList.toggle('nav-active', id==='cal');
   document.getElementById('nav-stats').classList.toggle('nav-active', id==='stats');
   window.scrollTo(0,0);
 }
@@ -855,6 +910,13 @@ function doImport() {
         exs.forEach(e => { if (!names.has(e.name)) cur.customPlanExercises[day].push(e); });
       });
     }
+    // Merge hidden plan exercises per day
+    if (parsed.hiddenPlanExercises) {
+      if (!cur.hiddenPlanExercises) cur.hiddenPlanExercises = {};
+      Object.entries(parsed.hiddenPlanExercises).forEach(([day, names]) => {
+        cur.hiddenPlanExercises[day] = [...new Set([...(cur.hiddenPlanExercises[day]||[]), ...names])];
+      });
+    }
     cur.sessions.sort((a,b) => a.date.localeCompare(b.date) || ((+a.id||0)-(+b.id||0)));
     localStorage.setItem('gymtracker', JSON.stringify(cur));
     db = cur;
@@ -953,6 +1015,116 @@ function bigChart(gymData, name) {
   </div>`;
 }
 
+// ── KALENDER ──────────────────────────────────────────────────────────────
+let calY = null, calM = null;
+
+function goCal() {
+  if (calY === null) { const now = new Date(); calY = now.getFullYear(); calM = now.getMonth(); }
+  renderCal();
+  show('cal');
+}
+function calShift(d) {
+  calM += d;
+  if (calM < 0) { calM = 11; calY--; }
+  if (calM > 11) { calM = 0; calY++; }
+  renderCal();
+}
+function renderCal() {
+  const cnt = document.getElementById('cal-content');
+  const pad = n => String(n).padStart(2,'0');
+  const byDate = {};
+  (db.sessions||[]).forEach(s => { (byDate[s.date] = byDate[s.date]||[]).push(s); });
+  const monthNames = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+  const offset = (new Date(calY, calM, 1).getDay()+6)%7; // Montag zuerst
+  const daysInMonth = new Date(calY, calM+1, 0).getDate();
+  const t = new Date();
+  const todayStr = `${t.getFullYear()}-${pad(t.getMonth()+1)}-${pad(t.getDate())}`;
+
+  let cells = ['Mo','Di','Mi','Do','Fr','Sa','So'].map(w=>`<div class="cal-wd">${w}</div>`).join('');
+  for (let i=0;i<offset;i++) cells += '<div class="cal-cell off"></div>';
+  let monthCount = 0;
+  for (let d=1; d<=daysInMonth; d++) {
+    const ds = `${calY}-${pad(calM+1)}-${pad(d)}`;
+    const list = byDate[ds];
+    const today = ds===todayStr ? ' today' : '';
+    if (list && list.length) {
+      monthCount += list.length;
+      const s = list[list.length-1];
+      cells += `<div class="cal-cell has bg${s.day}${today}" onclick="showDetail('${s.id}')"><span>${d}</span><span class="cal-ltr">${list.map(x=>x.day).join('')}</span></div>`;
+    } else {
+      cells += `<div class="cal-cell${today}"><span>${d}</span></div>`;
+    }
+  }
+
+  cnt.innerHTML = `
+    <div class="cal-head">
+      <button class="cal-nav" onclick="calShift(-1)">‹</button>
+      <div class="cal-title">${monthNames[calM]} ${calY}</div>
+      <button class="cal-nav" onclick="calShift(1)">›</button>
+    </div>
+    <div class="cal-grid">${cells}</div>
+    <div class="cal-legend">
+      <span><span class="cal-dot" style="background:var(--rl);border:1px solid var(--rose)"></span>A · ${PLANS.A.name}</span>
+      <span><span class="cal-dot" style="background:var(--sl);border:1px solid var(--sage)"></span>B · ${PLANS.B.name}</span>
+      <span><span class="cal-dot" style="background:var(--ll);border:1px solid var(--lav)"></span>C · ${PLANS.C.name}</span>
+    </div>
+    <div style="text-align:center;margin-top:12px;font-size:12px;color:var(--tl)">${monthCount} Training${monthCount!==1?'s':''} im ${monthNames[calM]}</div>`;
+}
+
+// ── PLAN EDITOR ───────────────────────────────────────────────────────────
+let editPlanDay = 'A';
+
+function openPlanEdit() {
+  editPlanDay = chosenDay || 'A';
+  renderPlanEdit();
+  openModal('modal-planedit');
+}
+function selPlanEditDay(d) { editPlanDay = d; renderPlanEdit(); }
+function renderPlanEdit() {
+  document.getElementById('pe-tabs').innerHTML = ['A','B','C'].map(d =>
+    `<button class="pe-tab${d===editPlanDay?' a'+d:''}" onclick="selPlanEditDay('${d}')">Day ${d}</button>`).join('');
+  const hidden = new Set((db.hiddenPlanExercises||{})[editPlanDay]||[]);
+  let html = '';
+  PLANS[editPlanDay].sections.forEach(sec => {
+    html += `<div class="slbl">${sec.label}</div>`;
+    sec.exs.forEach(ex => {
+      const off = hidden.has(ex.name);
+      const safe = ex.name.replace(/'/g,"\\'");
+      html += `<div class="pe-row${off?' hidden-ex':''}">
+        <div class="pe-name"><span class="${off?'strike':''}">${ex.name}</span></div>
+        <button class="pe-btn" onclick="togglePlanHide('${safe}')">${off?'↩ aufnehmen':'ausblenden'}</button>
+      </div>`;
+    });
+  });
+  const pinned = (db.customPlanExercises||{})[editPlanDay]||[];
+  if (pinned.length) {
+    html += `<div class="slbl">📌 Eigene Übungen</div>`;
+    pinned.forEach(ex => {
+      const safe = ex.name.replace(/'/g,"\\'");
+      html += `<div class="pe-row">
+        <div class="pe-name">${ex.name}</div>
+        <button class="pe-btn" style="color:#c0392b;border-color:#f5c0bb" onclick="delPinnedEx('${safe}')">🗑 entfernen</button>
+      </div>`;
+    });
+  }
+  document.getElementById('pe-list').innerHTML = html;
+}
+function togglePlanHide(name) {
+  if (!db.hiddenPlanExercises) db.hiddenPlanExercises = {};
+  if (!db.hiddenPlanExercises[editPlanDay]) db.hiddenPlanExercises[editPlanDay] = [];
+  const arr = db.hiddenPlanExercises[editPlanDay];
+  const i = arr.indexOf(name);
+  if (i >= 0) arr.splice(i,1); else arr.push(name);
+  saveDB();
+  renderPlanEdit();
+}
+function delPinnedEx(name) {
+  if (!confirm('"'+name+'" dauerhaft aus Plan '+editPlanDay+' entfernen?')) return;
+  db.customPlanExercises[editPlanDay] = (db.customPlanExercises[editPlanDay]||[]).filter(e=>e.name!==name);
+  saveDB();
+  renderPlanEdit();
+}
+
 // ── SETUP ─────────────────────────────────────────────────────────────────
 function selGym(g) {
   chosenGym = g;
@@ -975,9 +1147,12 @@ function startSession() {
   if (!date) return;
   const lastW = getLastWeights(chosenDay, chosenGym);
   const lastS = getLastSets(chosenDay, chosenGym);
+  const hiddenExs = new Set((db.hiddenPlanExercises||{})[chosenDay]||[]);
   const exercises = [];
   PLANS[chosenDay].sections.forEach(sec => {
-    sec.exs.forEach((ex, i) => {
+    let secFirst = true;
+    sec.exs.forEach(ex => {
+      if (hiddenExs.has(ex.name)) return;
       const w = lastW[ex.id] ?? lastW['n:'+ex.name] ?? ex.w;
       const numSets = lastS[ex.id] ?? lastS['n:'+ex.name] ?? ex.s;
       exercises.push({
@@ -986,9 +1161,10 @@ function startSession() {
         rest: ex.rest,
         opt: ex.opt||false,
         lastW: lastW[ex.id] ?? lastW['n:'+ex.name],
-        section: i === 0 ? sec.label : null,
+        section: secFirst ? sec.label : null,
         sets: Array.from({length:numSets}, ()=>({weight:w, reps:ex.r, done:false}))
       });
+      secFirst = false;
     });
   });
   // Add custom plan exercises for this day
