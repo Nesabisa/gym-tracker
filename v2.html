@@ -240,6 +240,7 @@ body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--text);min
     <div class="eyebrow">Gym Tracker</div>
     <h1 class="h1">Lift. <em>Grow.</em> Glow.</h1>
     <p class="hsub" id="home-sub"></p>
+    <div id="sync-badge" style="font-size:10px;color:var(--tl);margin-top:3px"></div>
   </div>
   <div class="cnt" id="home-log"></div>
   <button class="fab" onclick="goSetup()" title="Neues Training">+</button>
@@ -463,6 +464,15 @@ body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--text);min
   </div>
 </div>
 
+<!-- MODAL: CLOUD SYNC -->
+<div class="modal-ov" id="modal-sync">
+  <div class="msheet">
+    <div class="m-handle"></div>
+    <div class="m-title">☁️ Cloud-Sync</div>
+    <div id="sync-body"></div>
+  </div>
+</div>
+
 <!-- MODAL: EXPORT -->
 <div class="modal-ov" id="modal-export">
   <div class="msheet">
@@ -625,8 +635,24 @@ let editMode = false;
 let editSessionId = null;
 let exLibExpanded = new Set();
 let _exGroups = null; // Cache für getAllExerciseGroups, wird bei saveDB invalidiert
+let syncCode = localStorage.getItem('gymtracker_sync') || null;
+let syncStatus = 'off'; // off | connecting | on | error
+let _syncTimer = null;
 
-function saveDB() { try { localStorage.setItem('gymtracker', JSON.stringify(db)); } catch(e) {} _exGroups = null; }
+function saveDB() {
+  try {
+    localStorage.setItem('gymtracker', JSON.stringify(db));
+    localStorage.setItem('gymtracker_updated', String(Date.now()));
+  } catch(e) {}
+  _exGroups = null;
+  queueSyncPush();
+}
+
+function queueSyncPush() {
+  if (!syncCode || !window._syncPush) return;
+  clearTimeout(_syncTimer);
+  _syncTimer = setTimeout(() => window._syncPush(syncCode, db), 800);
+}
 
 // Sessions chronologisch (Datum, dann Erstellzeit) — Einfüge-Reihenfolge ist
 // nach Import/Nachtragen nicht verlässlich
@@ -699,6 +725,16 @@ function renderHome() {
   document.getElementById('home-sub').textContent = sessions.length
     ? sessions.length+' Session'+(sessions.length!==1?'s':'')+' gesamt' : 'Bereit zum ersten Training?';
 
+  const syncBanner = (!syncCode && !localStorage.getItem('gymtracker_sync_dismissed'))
+    ? `<div class="s-card" style="border-style:dashed" onclick="openSyncModal()">
+        <div class="sbadge" style="background:var(--ll);color:var(--ld);font-size:17px">☁️</div>
+        <div class="s-info">
+          <div class="s-name">Cloud-Backup einrichten</div>
+          <div class="s-meta">Nie wieder Daten verlieren · antippen</div>
+        </div>
+        <button class="ic-btn" onclick="dismissSyncBanner(event)">✕</button>
+      </div>` : '';
+
   const active = loadActive();
   const resumeBanner = active ? `<div class="resume-card" onclick="resumeSession()">
     <div class="resume-left">
@@ -713,10 +749,11 @@ function renderHome() {
 
   if (!sessions.length && !active) {
     document.getElementById('home-log').innerHTML =
-      resumeBanner + `<div class="empty"><div class="big">💪</div><p>Noch keine Sessions gespeichert.<br>Tippe + um zu starten.</p></div>`;
+      syncBanner + resumeBanner + `<div class="empty"><div class="big">💪</div><p>Noch keine Sessions gespeichert.<br>Tippe + um zu starten.</p></div>`;
+    updateSyncBadge();
     return;
   }
-  document.getElementById('home-log').innerHTML = resumeBanner + sessionsByDate().reverse().map(s => {
+  document.getElementById('home-log').innerHTML = syncBanner + resumeBanner + sessionsByDate().reverse().map(s => {
     const gi = gymInfo(s.gym);
     const gym = `<span class="gym-pill ${gi.cls}">${gi.icon} ${gi.label}</span>`;
     return `<div class="s-card" onclick="showDetail('${s.id}')">
@@ -728,6 +765,7 @@ function renderHome() {
       <span style="color:var(--tl);font-size:18px">›</span>
     </div>`;
   }).join('');
+  updateSyncBadge();
 }
 
 // ── STATS ─────────────────────────────────────────────────────────────────
@@ -802,6 +840,7 @@ function renderStats() {
     </div>
     ${chartHtml}
     <div style="margin-top:32px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+      <button onclick="openSyncModal()" style="font-family:'Jost',sans-serif;font-size:13px;padding:10px 22px;border:1.5px solid var(--border);border-radius:13px;background:var(--white);color:var(--tl);cursor:pointer;">☁️ Sync</button>
       <button onclick="openImport()" style="font-family:'Jost',sans-serif;font-size:13px;padding:10px 22px;border:1.5px solid var(--border);border-radius:13px;background:var(--white);color:var(--tl);cursor:pointer;">📥 Importieren</button>
       <button onclick="openExport()" style="font-family:'Jost',sans-serif;font-size:13px;padding:10px 22px;border:1.5px solid var(--border);border-radius:13px;background:var(--white);color:var(--tl);cursor:pointer;">📤 Exportieren</button>
     </div>`;
@@ -919,8 +958,10 @@ function doImport() {
     }
     cur.sessions.sort((a,b) => a.date.localeCompare(b.date) || ((+a.id||0)-(+b.id||0)));
     localStorage.setItem('gymtracker', JSON.stringify(cur));
+    localStorage.setItem('gymtracker_updated', String(Date.now()));
     db = cur;
     _exGroups = null;
+    queueSyncPush();
     closeModal('modal-import');
     alert(`✓ ${newSessions.length} Sessions, ${newGyms.length} Studios importiert!`);
     renderStats();
@@ -1936,12 +1977,197 @@ function deleteCustomGym(id) {
   renderGymToggle();
 }
 
+// ── CLOUD SYNC ────────────────────────────────────────────────────────────
+// Vereint zwei Datenstände ohne Verluste (Sessions nach id, Rest nach Name/id)
+function mergeDb(a, b) {
+  a = a||{}; b = b||{};
+  const seen = new Set((a.sessions||[]).map(s=>s.id));
+  const sessions = [...(a.sessions||[]), ...(b.sessions||[]).filter(s=>!seen.has(s.id))];
+  sessions.sort((x,y) => x.date.localeCompare(y.date) || ((+x.id||0)-(+y.id||0)));
+  const exN = new Set((a.customExercises||[]).map(e=>e.name));
+  const customExercises = [...(a.customExercises||[]), ...(b.customExercises||[]).filter(e=>!exN.has(e.name))];
+  const gyI = new Set((a.customGyms||[]).map(g=>g.id));
+  const customGyms = [...(a.customGyms||[]), ...(b.customGyms||[]).filter(g=>!gyI.has(g.id))];
+  const customPlanExercises = {}, hiddenPlanExercises = {};
+  ['A','B','C'].forEach(d => {
+    const an=(a.customPlanExercises||{})[d]||[], bn=(b.customPlanExercises||{})[d]||[];
+    const nm=new Set(an.map(e=>e.name));
+    const cp=[...an, ...bn.filter(e=>!nm.has(e.name))];
+    if (cp.length) customPlanExercises[d]=cp;
+    const hd=[...new Set([...((a.hiddenPlanExercises||{})[d]||[]), ...((b.hiddenPlanExercises||{})[d]||[])])];
+    if (hd.length) hiddenPlanExercises[d]=hd;
+  });
+  return {sessions, customExercises, customGyms, customPlanExercises, hiddenPlanExercises};
+}
+
+// Wird vom Firebase-Modul aufgerufen wenn neuere Daten aus der Cloud kommen
+function applyRemote(remote, ts) {
+  db = remote || {};
+  try {
+    localStorage.setItem('gymtracker', JSON.stringify(db));
+    if (ts) localStorage.setItem('gymtracker_updated', String(ts));
+  } catch(e) {}
+  _exGroups = null;
+  const cur = document.querySelector('.screen.active')?.id;
+  if (cur === 'screen-home') renderHome();
+  else if (cur === 'screen-stats') renderStats();
+  else if (cur === 'screen-cal') renderCal();
+}
+
+function setSyncStatus(s) {
+  syncStatus = s;
+  updateSyncBadge();
+  const el = document.getElementById('sync-modal-status');
+  if (el) el.textContent = s==='on' ? '☁️ Verbunden' : s==='error' ? '⚠️ Verbindungsproblem' : 'verbinde…';
+}
+function updateSyncBadge() {
+  const el = document.getElementById('sync-badge');
+  if (!el) return;
+  el.textContent = !syncCode ? '' :
+    syncStatus==='on' ? '☁️ Sync aktiv' :
+    syncStatus==='error' ? '⚠️ Sync-Fehler' :
+    syncStatus==='connecting' ? '☁️ verbinde…' : '';
+}
+
+function openSyncModal() { renderSyncModal(); openModal('modal-sync'); }
+function dismissSyncBanner(e) {
+  e.stopPropagation();
+  localStorage.setItem('gymtracker_sync_dismissed','1');
+  renderHome();
+}
+function genSyncCode() {
+  const inp = document.getElementById('sync-code-inp');
+  if (inp) inp.value = 'gym-' + Math.random().toString(36).slice(2,8);
+}
+async function connectSync() {
+  const inp = document.getElementById('sync-code-inp');
+  const code = (inp?.value||'').trim().toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9_-]/g,'');
+  if (code.length < 4) { alert('Der Code braucht mindestens 4 Zeichen.'); return; }
+  if (!window._syncConnect) { alert('Sync-Modul lädt noch — bitte kurz warten und nochmal tippen.'); return; }
+  const btn = document.getElementById('sync-connect-btn');
+  if (btn) { btn.textContent = 'Verbinde…'; btn.disabled = true; }
+  try {
+    await window._syncConnect(code);
+    syncCode = code;
+    localStorage.setItem('gymtracker_sync', code);
+    renderSyncModal();
+    renderHome();
+    updateSyncBadge();
+  } catch(e) {
+    alert('Verbindung fehlgeschlagen ('+(e.code||e.message||e)+'). Internet an? Sonst später nochmal versuchen.');
+    renderSyncModal();
+  }
+}
+function disconnectSync() {
+  if (!confirm('Sync trennen? Deine Daten bleiben auf diesem Gerät und in der Cloud erhalten.')) return;
+  if (window._syncStop) window._syncStop();
+  syncCode = null;
+  syncStatus = 'off';
+  localStorage.removeItem('gymtracker_sync');
+  renderSyncModal();
+  renderHome();
+  updateSyncBadge();
+}
+function renderSyncModal() {
+  const body = document.getElementById('sync-body');
+  if (!body) return;
+  if (syncCode) {
+    body.innerHTML = `
+      <p style="font-size:13px;color:var(--tm);margin-bottom:14px">Deine Daten werden automatisch gesichert. Gib diesen Code auf einem anderen Gerät ein, um dort dieselben Daten zu haben:</p>
+      <div style="text-align:center;background:var(--cream);border:1.5px dashed var(--border);border-radius:13px;padding:16px;margin-bottom:8px">
+        <div style="font-family:'Cormorant Garamond',serif;font-size:26px;letter-spacing:1px">${syncCode}</div>
+      </div>
+      <div style="text-align:center;font-size:11px;color:var(--tl);margin-bottom:16px" id="sync-modal-status">${syncStatus==='on'?'☁️ Verbunden':syncStatus==='error'?'⚠️ Verbindungsproblem':'verbinde…'}</div>
+      <button class="m-cancel" style="color:#c0392b" onclick="disconnectSync()">Sync trennen</button>
+      <button class="m-cancel" onclick="closeModal('modal-sync')">Schließen</button>`;
+  } else {
+    body.innerHTML = `
+      <p style="font-size:13px;color:var(--tm);margin-bottom:14px">Sichert deine Daten automatisch in der Cloud und hält mehrere Geräte synchron. Merk dir deinen Code gut — er ist der Schlüssel zu deinen Daten.</p>
+      <div class="m-label">Dein Sync-Code</div>
+      <input type="text" class="m-inp" id="sync-code-inp" placeholder="z.B. sabine-gym-24" autocapitalize="none" autocomplete="off">
+      <button class="m-save" id="sync-connect-btn" onclick="connectSync()">Verbinden ✓</button>
+      <button class="m-cancel" onclick="genSyncCode()">🎲 Zufälligen Code erzeugen</button>
+      <button class="m-cancel" onclick="closeModal('modal-sync')">Später</button>`;
+  }
+}
+
 // ── INIT ──────────────────────────────────────────────────────────────────
 renderHome();
 show('home');
 document.addEventListener('touchstart', ()=>{ try { getAudio(); } catch(e){} }, {once:true});
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') document.querySelectorAll('.modal-ov.on').forEach(m=>closeModal(m.id)); });
 document.getElementById('pause-ov').addEventListener('click', e=>{ if(e.target===e.currentTarget) skipPause(); });
+</script>
+
+<script type="module">
+// ── FIREBASE CLOUD SYNC ─────────────────────────────────────────────────
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.0/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.8.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDBeS_N564vAqpdFEuTXtwmRq1NQxJyTGo",
+  authDomain: "ausgaben-ac792.firebaseapp.com",
+  projectId: "ausgaben-ac792",
+  storageBucket: "ausgaben-ac792.firebasestorage.app",
+  messagingSenderId: "1036481285970",
+  appId: "1:1036481285970:web:c442d03361f44a9185348b"
+};
+const SYNC_COL = "gymtracker";
+let _fdb = null, _unsub = null;
+function fdb() { if (!_fdb) _fdb = getFirestore(initializeApp(firebaseConfig)); return _fdb; }
+
+window._syncPush = async (code, data) => {
+  try {
+    const now = Date.now();
+    await setDoc(doc(fdb(), SYNC_COL, code), { json: JSON.stringify(data), updatedAt: now });
+    localStorage.setItem('gymtracker_updated', String(now));
+    setSyncStatus('on');
+    return true;
+  } catch(e) {
+    setSyncStatus('error');
+    return false;
+  }
+};
+
+window._syncConnect = async (code) => {
+  const ref = doc(fdb(), SYNC_COL, code);
+  const snap = await getDoc(ref); // wirft bei Berechtigungs-/Netzfehler → connectSync zeigt Meldung
+  if (snap.exists()) {
+    let remote = {};
+    try { remote = JSON.parse(snap.data().json || '{}'); } catch(e) {}
+    applyRemote(mergeDb(db, remote));
+  }
+  const now = Date.now();
+  await setDoc(ref, { json: JSON.stringify(db), updatedAt: now });
+  localStorage.setItem('gymtracker_updated', String(now));
+  startListen(code);
+};
+
+function startListen(code) {
+  if (_unsub) _unsub();
+  setSyncStatus('connecting');
+  _unsub = onSnapshot(doc(fdb(), SYNC_COL, code), snap => {
+    if (snap.metadata.hasPendingWrites) { setSyncStatus('on'); return; }
+    if (!snap.exists()) { window._syncPush(code, db); return; }
+    const d = snap.data();
+    const localUpd = +(localStorage.getItem('gymtracker_updated') || 0);
+    if ((d.updatedAt||0) > localUpd) {
+      let remote = null;
+      try { remote = JSON.parse(d.json || '{}'); } catch(e) {}
+      if (remote) applyRemote(remote, d.updatedAt);
+    } else if ((d.updatedAt||0) < localUpd) {
+      // Lokal ist neuer (z.B. offline geändert) → hochladen
+      window._syncPush(code, db);
+      return;
+    }
+    setSyncStatus('on');
+  }, err => setSyncStatus('error'));
+}
+window._syncStart = startListen;
+window._syncStop = () => { if (_unsub) { _unsub(); _unsub = null; } };
+
+// Auto-Start wenn Code vorhanden
+if (syncCode) startListen(syncCode);
 </script>
 </body>
 </html>
