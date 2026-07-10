@@ -2142,10 +2142,11 @@ function setSyncStatus(s) {
 function updateSyncBadge() {
   const el = document.getElementById('sync-badge');
   if (!el) return;
-  el.textContent = !syncCode ? '' :
+  const state = !syncCode ? '' :
     syncStatus==='on' ? '☁️ Sync aktiv' :
     syncStatus==='error' ? '⚠️ Sync-Fehler' :
-    syncStatus==='connecting' ? '☁️ verbinde…' : '';
+    syncStatus==='connecting' ? '☁️ verbinde…' : '☁️';
+  el.textContent = syncCode ? `${state} · ${syncCode}` : '';
 }
 
 function openSyncModal() { renderSyncModal(); openModal('modal-sync'); }
@@ -2216,6 +2217,8 @@ show('home');
 document.addEventListener('touchstart', ()=>{ try { getAudio(); } catch(e){} }, {once:true});
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') document.querySelectorAll('.modal-ov.on').forEach(m=>closeModal(m.id)); });
 document.getElementById('pause-ov').addEventListener('click', e=>{ if(e.target===e.currentTarget) skipPause(); });
+// Tipp auf den Hintergrund schließt jedes Modal
+document.querySelectorAll('.modal-ov').forEach(m => m.addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(m.id); }));
 </script>
 
 <script type="module">
