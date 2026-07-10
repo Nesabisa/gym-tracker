@@ -1311,24 +1311,25 @@ function startSession() {
   if (!chosenDay || !chosenGym) return;
   const date = document.getElementById('setup-date').value;
   if (!date) return;
-  const lastW = getLastWeights(chosenDay, chosenGym);
-  const lastS = getLastSets(chosenDay, chosenGym);
+  const lastData = getLastExData(chosenDay, chosenGym);
   const hiddenExs = new Set((db.hiddenPlanExercises||{})[chosenDay]||[]);
   const exercises = [];
   PLANS[chosenDay].sections.forEach(sec => {
     let secFirst = true;
     sec.exs.forEach(ex => {
       if (hiddenExs.has(ex.name)) return;
-      const w = lastW[ex.id] ?? lastW['n:'+ex.name] ?? ex.w;
-      const numSets = lastS[ex.id] ?? lastS['n:'+ex.name] ?? ex.s;
+      const src = lastData[ex.id] || lastData['n:'+ex.name];
+      const w = (src && src.w) ? src.w : ex.w;
+      const reps = (src && src.r) ? src.r : ex.r;
+      const numSets = (src && src.s) ? src.s : ex.s;
       exercises.push({
         id: ex.id,
         name: ex.name,
         rest: ex.rest,
         opt: ex.opt||false,
-        lastW: lastW[ex.id] ?? lastW['n:'+ex.name],
+        lastW: (src && src.w) ? src.w : undefined,
         section: secFirst ? sec.label : null,
-        sets: Array.from({length:numSets}, ()=>({weight:w, reps:ex.r, done:false}))
+        sets: Array.from({length:numSets}, ()=>({weight:w, reps:reps, done:false}))
       });
       secFirst = false;
     });
@@ -1337,15 +1338,11 @@ function startSession() {
   const customPlanExs = (db.customPlanExercises||{})[chosenDay]||[];
   customPlanExs.forEach(ce => {
     if (exercises.find(e=>e.name===ce.name)) return;
-    // Find last weight from history for this exercise
-    const prev = sessionsByDate().filter(s=>s.day===chosenDay&&normGym(s.gym)===normGym(chosenGym));
-    let lastWeight = ce.w;
-    for (let i=prev.length-1; i>=0; i--) {
-      const found = prev[i].exercises.find(e=>e.name===ce.name);
-      if (found) { const ws=found.sets.find(s=>s.done&&s.weight>0)||found.sets.find(s=>s.weight>0); if(ws){lastWeight=ws.weight;break;} }
-    }
-    const numSets = lastS['n:'+ce.name] ?? ce.s ?? 3;
-    exercises.push({id:'cplan-'+ce.name.replace(/[^a-z0-9]/gi,''), name:ce.name, rest:ce.rest||60, opt:false, lastW:lastWeight!==ce.w?lastWeight:undefined, section:null, sets:Array.from({length:numSets},()=>({weight:lastWeight,reps:ce.r||10,done:false}))});
+    const src = lastData['n:'+ce.name];
+    const w = (src && src.w) ? src.w : ce.w;
+    const reps = (src && src.r) ? src.r : (ce.r||10);
+    const numSets = (src && src.s) ? src.s : (ce.s||3);
+    exercises.push({id:'cplan-'+ce.name.replace(/[^a-z0-9]/gi,''), name:ce.name, rest:ce.rest||60, opt:false, lastW:(src&&src.w)?src.w:undefined, section:null, sets:Array.from({length:numSets},()=>({weight:w,reps:reps,done:false}))});
   });
 
   const lastGoals = (() => {
@@ -1370,32 +1367,27 @@ function startSession() {
 
 function normGym(g) { return (g==='bs'||g==='bs1') ? 'bs1' : (g||'evo'); }
 
-function getLastWeights(day, gym) {
-  const prev = sessionsByDate().filter(s=>s.day===day && normGym(s.gym)===normGym(gym));
-  if (!prev.length) return {};
-  const w = {};
-  for (let i = prev.length-1; i >= 0; i--) {
-    prev[i].exercises.forEach(ex => {
-      if (w[ex.id] !== undefined) return;
-      const s = ex.sets.find(x=>x.done&&x.weight>0) || ex.sets.find(x=>x.weight>0);
-      if (s) { w[ex.id] = s.weight; w['n:'+ex.name] = s.weight; }
-    });
-  }
-  return w;
-}
-
-function getLastSets(day, gym) {
-  const prev = sessionsByDate().filter(s=>s.day===day && normGym(s.gym)===normGym(gym));
-  if (!prev.length) return {};
-  const s = {};
-  for (let i = prev.length-1; i >= 0; i--) {
-    prev[i].exercises.forEach(ex => {
-      if (s[ex.id] !== undefined) return;
-      const used = ex.sets.filter(x => x.weight > 0 || x.reps > 0);
-      if (used.length) { s[ex.id] = used.length; s['n:'+ex.name] = used.length; }
-    });
-  }
-  return s;
+// Letzte Werte (Gewicht, Wdh, Satzzahl) pro Übung, in 3 Stufen:
+// 1. gleicher Tag + gleiches Gym  2. gleiches Gym, anderer Tag  3. irgendein Gym
+// Spätere Stufen füllen nur Übungen, die vorher nicht gefunden wurden.
+function getLastExData(day, gym) {
+  const all = sessionsByDate();
+  const sameGym = all.filter(s => normGym(s.gym) === normGym(gym));
+  const tiers = [sameGym.filter(s => s.day === day), sameGym, all];
+  const out = {};
+  tiers.forEach(tier => {
+    for (let i = tier.length-1; i >= 0; i--) {
+      tier[i].exercises.forEach(ex => {
+        const used = ex.sets.filter(x => x.weight > 0 || x.reps > 0);
+        if (!used.length) return;
+        const s0 = ex.sets.find(x=>x.done&&x.weight>0) || ex.sets.find(x=>x.weight>0) || used[0];
+        const entry = {w: s0.weight||0, r: s0.reps||0, s: used.length};
+        if (out[ex.id] === undefined) out[ex.id] = entry;
+        if (out['n:'+ex.name] === undefined) out['n:'+ex.name] = entry;
+      });
+    }
+  });
+  return out;
 }
 
 // ── RENDER ACTIVE ─────────────────────────────────────────────────────────
