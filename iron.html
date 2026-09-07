@@ -1,0 +1,2439 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>IRON</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;600&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--rose:#d13b3b;--rl:#3a2226;--rd:#e35555;--sage:#7c8794;--sl:#272c33;--sd:#a3aeb9;--lav:#c98a2c;--ll:#332a1c;--ld:#d9a441;--cream:#16181b;--white:#1d2024;--text:#e8eaec;--tm:#a8b0b8;--tl:#6f7780;--border:#2b3037;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Barlow',sans-serif;background:var(--cream);color:var(--text);min-height:100vh;overflow-x:hidden;padding-bottom:72px;}
+.screen{display:none;}
+.screen.active{display:block;min-height:100vh;}
+
+/* HEADER */
+.hdr{background:linear-gradient(165deg,#22262b 0%,#1d2024 60%,#191c20 100%);border-bottom:2px solid var(--rose);padding:44px 20px 18px;text-align:center;position:sticky;top:0;z-index:10;}
+.hdr-back{position:absolute;left:14px;top:44px;width:36px;height:36px;border-radius:50%;background:var(--white);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;color:var(--tm);}
+.hdr-action{position:absolute;right:14px;top:44px;}
+.eyebrow{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--rd);font-weight:500;}
+.h1{font-family:'Oswald',sans-serif;font-size:27px;font-weight:400;line-height:1.1;letter-spacing:-.3px;text-transform:uppercase;}
+.h1 em{font-style:normal;color:var(--rose);}
+.hsub{font-size:12px;color:var(--tl);margin-top:4px;}
+
+/* BOTTOM NAV */
+.bnav{position:fixed;bottom:0;left:0;right:0;background:var(--white);border-top:1px solid var(--border);display:flex;z-index:20;padding-bottom:env(safe-area-inset-bottom);}
+.bnav-btn{flex:1;padding:12px 8px 10px;border:none;background:none;font-family:'Barlow',sans-serif;font-size:11px;font-weight:500;color:var(--tl);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;transition:color .18s;}
+.bnav-btn .icon{font-size:20px;}
+.bnav-btn.nav-active{color:var(--rd);}
+
+/* CONTENT */
+.cnt{max-width:600px;margin:0 auto;padding:18px 14px 80px;}
+
+/* HOME */
+.fab{position:fixed;bottom:80px;right:20px;background:linear-gradient(135deg,var(--rose),var(--rd));color:white;border:none;border-radius:50%;width:56px;height:56px;font-size:24px;cursor:pointer;box-shadow:0 4px 20px rgba(209,59,59,.4);z-index:15;display:flex;align-items:center;justify-content:center;}
+.empty{text-align:center;padding:56px 20px;color:var(--tl);}
+.empty .big{font-size:44px;margin-bottom:10px;}
+.empty p{font-size:13px;line-height:1.7;}
+.s-card{background:var(--white);border:1px solid var(--border);border-radius:6px;margin-bottom:10px;padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:box-shadow .2s,transform .2s;}
+.s-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.35);transform:translateY(-1px);}
+.sbadge{width:42px;height:42px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-family:'Oswald',serif;font-size:19px;font-weight:600;flex-shrink:0;}
+.bgA{background:var(--rl);color:var(--rd);}
+.bgB{background:var(--sl);color:var(--sd);}
+.bgC{background:var(--ll);color:var(--ld);}
+.s-info{flex:1;min-width:0;}
+.s-name{font-size:14px;font-weight:500;}
+.s-meta{font-size:11px;color:var(--tl);margin-top:2px;}
+.gym-pill{display:inline-block;font-size:9px;padding:2px 7px;border-radius:6px;font-weight:600;letter-spacing:.5px;margin-left:6px;vertical-align:middle;}
+.gp-evo{background:var(--sl);color:var(--sd);}
+.gp-bs{background:var(--rl);color:var(--rd);}
+.resume-card{background:linear-gradient(135deg,#3a2226,#2a2429);border:1.5px solid var(--rose);border-radius:6px;margin-bottom:14px;padding:14px 16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.resume-left{display:flex;align-items:center;gap:12px;}
+.resume-icon{width:42px;height:42px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-family:'Oswald',serif;font-size:19px;font-weight:600;flex-shrink:0;}
+
+/* SETUP */
+.setup-lbl{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--tl);font-weight:500;margin-bottom:10px;}
+.setup-sec{margin-bottom:22px;overflow:hidden;}
+.dinput{width:100%;display:block;max-width:100%;padding:13px 15px;border:1.5px solid var(--border);border-radius:5px;background:var(--white);font-family:'Barlow',sans-serif;font-size:16px;color:var(--text);outline:none;-webkit-appearance:none;}
+.dinput:focus{border-color:var(--rose);}
+.gym-toggle{display:flex;background:var(--white);border:1.5px solid var(--border);border-radius:5px;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+.gym-toggle::-webkit-scrollbar{display:none;}
+.gym-btn{flex:0 0 auto;padding:11px 16px;border:none;background:none;font-family:'Barlow',sans-serif;font-size:13px;font-weight:500;color:var(--tl);cursor:pointer;transition:all .18s;white-space:nowrap;}
+.gym-btn.g-evo{background:var(--sl);color:var(--sd);}
+.gym-btn.g-bs{background:var(--rl);color:var(--rd);}
+.gym-btn.g-bs1{background:var(--rl);color:var(--rd);}
+.gym-btn.g-bs2{background:var(--ll);color:var(--ld);}
+.gp-bs2{background:var(--ll);color:var(--ld);}
+.day-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+.day-card{border:2px solid var(--border);border-radius:6px;padding:14px 8px;text-align:center;cursor:pointer;background:var(--white);transition:all .2s;}
+.day-card.selA{border-color:var(--rose);background:var(--rl);}
+.day-card.selB{border-color:var(--sage);background:var(--sl);}
+.day-card.selC{border-color:var(--lav);background:var(--ll);}
+.day-ltr{font-family:'Oswald',serif;font-size:26px;font-weight:600;}
+.day-nm{font-size:10px;color:var(--tl);margin-top:3px;line-height:1.3;}
+.start-btn{width:100%;padding:15px;border:none;border-radius:6px;background:linear-gradient(135deg,var(--rose),var(--rd));color:white;font-family:'Barlow',sans-serif;font-size:15px;font-weight:500;cursor:pointer;opacity:.4;transition:opacity .2s;}
+.start-btn.ready{opacity:1;}
+
+/* ACTIVE */
+.tbar{background:var(--white);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;}
+.t-left{display:flex;align-items:center;gap:12px;}
+.tlbl{font-size:10px;color:var(--tl);letter-spacing:1px;text-transform:uppercase;}
+.tdisp{font-family:'Oswald',serif;font-size:26px;color:var(--text);}
+.fin-btn{padding:8px 16px;border:none;border-radius:18px;background:var(--rl);color:var(--rd);font-family:'Barlow',sans-serif;font-size:13px;font-weight:500;cursor:pointer;}
+.slbl{font-size:9px;letter-spacing:2.5px;text-transform:uppercase;color:var(--tl);font-weight:500;margin:18px 0 8px;display:flex;align-items:center;gap:8px;}
+.slbl::after{content:'';flex:1;height:1px;background:var(--border);}
+
+.exc{background:var(--white);border:1px solid var(--border);border-radius:6px;margin-bottom:10px;overflow:hidden;}
+.exc-hdr{padding:11px 13px;display:flex;align-items:center;gap:9px;}
+.enum{width:27px;height:27px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'Oswald',serif;font-size:13px;font-weight:600;flex-shrink:0;}
+.nr{background:var(--rl);color:var(--rd);}
+.ns{background:var(--sl);color:var(--sd);}
+.nl{background:var(--ll);color:var(--ld);}
+.no{background:#332a1c;color:#d9a441;}
+.ename{font-size:14px;font-weight:500;flex:1;line-height:1.3;}
+.ename.opt{color:var(--tl);font-style:italic;}
+.exc-btns{display:flex;gap:4px;flex-shrink:0;}
+.ic-btn{width:28px;height:28px;border:none;background:none;cursor:pointer;font-size:13px;color:var(--tl);border-radius:8px;display:flex;align-items:center;justify-content:center;transition:background .15s;}
+.ic-btn:hover{background:var(--cream);}
+.ic-btn.del:hover{background:#2a1a1a;color:#e35555;}
+
+.last-hint{padding:0 13px 6px;font-size:11px;color:var(--tl);}
+.last-hint span{color:var(--sd);font-weight:500;}
+
+.exc-sets{padding:0 13px 11px;}
+.set-row{display:flex;align-items:center;gap:7px;margin-bottom:6px;}
+.snr{font-size:11px;color:var(--tl);width:15px;text-align:right;flex-shrink:0;}
+.sinp{border:1.5px solid var(--border);border-radius:9px;padding:7px 5px;text-align:center;font-family:'Oswald',serif;font-size:18px;color:var(--text);background:var(--cream);outline:none;flex:1;min-width:0;}
+.sinp:focus{border-color:var(--rose);}
+.sinp.faded{opacity:.42;}
+.sx{font-size:12px;color:var(--tl);flex-shrink:0;}
+.done-btn{width:34px;height:34px;border-radius:9px;border:1.5px solid var(--border);background:var(--cream);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;flex-shrink:0;transition:all .18s;color:var(--tl);}
+.done-btn.done{background:var(--sl);border-color:var(--sage);color:var(--sd);}
+.del-set{width:24px;height:24px;border:none;background:none;cursor:pointer;font-size:12px;color:var(--tl);flex-shrink:0;transition:color .15s;}
+.del-set:hover{color:#e35555;}
+.add-set-btn{font-size:12px;color:var(--tl);background:none;border:1px dashed var(--border);border-radius:9px;padding:6px 12px;cursor:pointer;width:100%;font-family:'Barlow',sans-serif;margin-top:2px;transition:all .18s;}
+.add-set-btn:hover{border-color:var(--rose);color:var(--rd);}
+
+.cue-section{padding:0 13px 11px;border-top:1px solid var(--border);}
+.cue-toggle{font-size:11px;color:var(--tl);cursor:pointer;padding:8px 0 6px;display:flex;align-items:center;gap:5px;background:none;border:none;font-family:'Barlow',sans-serif;}
+.cue-list{list-style:none;}
+.cue-list li{padding:4px 0;border-bottom:1px solid var(--border);font-size:12px;color:var(--tm);display:flex;gap:7px;line-height:1.5;}
+.cue-list li::before{content:'✦';color:var(--rose);font-size:8px;margin-top:3px;flex-shrink:0;}
+.cue-list li:last-child{border-bottom:none;}
+.add-ex-row{display:flex;justify-content:center;margin-top:12px;}
+.add-ex-btn{font-size:13px;color:var(--tm);background:var(--white);border:1.5px dashed var(--border);border-radius:5px;padding:10px 20px;cursor:pointer;font-family:'Barlow',sans-serif;transition:all .18s;}
+.add-ex-btn:hover{border-color:var(--sage);color:var(--sd);}
+
+.goal-btn{font-size:10px;padding:3px 8px;border:1.5px solid var(--border);border-radius:7px;background:none;color:var(--tl);cursor:pointer;font-family:'Barlow',sans-serif;white-space:nowrap;transition:all .15s;}
+.goal-btn.gon{background:var(--sl);border-color:var(--sage);color:var(--sd);}
+.goal-row{padding:7px 13px;border-top:1px solid var(--border);display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+
+/* DETAIL */
+.detail-meta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+.dmeta-chip{background:var(--white);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:12px;color:var(--tm);}
+.det-ex{background:var(--white);border:1px solid var(--border);border-radius:5px;margin-bottom:8px;padding:13px 15px;}
+.det-exname{font-size:14px;font-weight:500;margin-bottom:8px;}
+.det-sets{display:flex;gap:6px;flex-wrap:wrap;}
+.det-chip{background:var(--cream);border:1px solid var(--border);border-radius:7px;padding:4px 9px;font-size:12px;color:var(--tm);}
+.det-chip.done{background:var(--sl);border-color:var(--sage);color:var(--sd);}
+.edit-set-row{display:flex;align-items:center;gap:6px;margin-bottom:5px;}
+.edit-inp{border:1.5px solid var(--border);border-radius:8px;padding:6px 5px;text-align:center;font-family:'Oswald',serif;font-size:17px;color:var(--text);background:var(--cream);outline:none;width:70px;}
+.edit-inp:focus{border-color:var(--lav);}
+.del-session-btn{width:100%;padding:13px;border:1.5px solid #5a2626;border-radius:0;background:#2a1a1a;color:#e35555;font-family:'Barlow',sans-serif;font-size:14px;cursor:pointer;margin-top:16px;}
+
+/* STATS */
+.stat-summary{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:20px;}
+.stat-box{background:var(--white);border:1px solid var(--border);border-radius:5px;padding:14px 6px;text-align:center;}
+.stat-val{font-family:'Oswald',serif;font-size:26px;font-weight:400;color:var(--text);}
+.stat-nm{font-size:10px;color:var(--tl);margin-top:3px;}
+.stat-slbl{font-size:9px;letter-spacing:2.5px;text-transform:uppercase;color:var(--tl);font-weight:500;margin:18px 0 10px;display:flex;align-items:center;gap:8px;}
+.stat-slbl::after{content:'';flex:1;height:1px;background:var(--border);}
+.ex-search-wrap{position:relative;margin-bottom:16px;}
+.ex-search-inp{width:100%;padding:11px 15px;border:1.5px solid var(--border);border-radius:5px;background:var(--white);font-family:'Barlow',sans-serif;font-size:15px;color:var(--text);outline:none;-webkit-appearance:none;}
+.ex-search-inp:focus{border-color:var(--rose);}
+.ex-dropdown{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--white);border:1.5px solid var(--border);border-radius:5px;z-index:50;max-height:220px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.5);display:none;}
+.ex-dropdown.open{display:block;}
+.ex-drop-item{padding:11px 15px;font-family:'Barlow',sans-serif;font-size:14px;color:var(--text);cursor:pointer;border-bottom:1px solid var(--border);}
+.ex-drop-item:last-child{border-bottom:none;}
+.ex-drop-item:hover,.ex-drop-item.hi{background:var(--rl);color:var(--rd);}
+.chart-card{background:var(--white);border:1px solid var(--border);border-radius:6px;padding:16px 14px;margin-bottom:12px;}
+.chart-prog{display:flex;align-items:baseline;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
+.chart-name{font-size:15px;font-weight:500;}
+.chart-diff{font-size:13px;font-weight:500;}
+.chart-diff.up{color:var(--sd);}
+.chart-diff.down{color:#e35555;}
+.chart-meta{font-size:11px;color:var(--tl);margin-left:auto;}
+.chart-svg{width:100%;display:block;overflow:visible;}
+.stats-empty{text-align:center;padding:48px 20px;color:var(--tl);}
+.stats-empty .big{font-size:40px;margin-bottom:10px;}
+
+/* KALENDER */
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.cal-title{font-family:'Oswald',serif;font-size:21px;font-weight:400;}
+.cal-nav{width:34px;height:34px;border-radius:50%;border:1px solid var(--border);background:var(--white);cursor:pointer;font-size:15px;color:var(--tm);}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+.cal-wd{text-align:center;font-size:10px;color:var(--tl);padding:4px 0;letter-spacing:1px;}
+.cal-cell{aspect-ratio:1;border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:11px;color:var(--tm);background:var(--white);border:1px solid var(--border);}
+.cal-cell.off{background:none;border:none;}
+.cal-cell.today{border:1.5px solid var(--rd);}
+.cal-cell.has{cursor:pointer;}
+.cal-cell.bgA{background:var(--rl);border-color:var(--rose);color:var(--rd);}
+.cal-cell.bgB{background:var(--sl);border-color:var(--sage);color:var(--sd);}
+.cal-cell.bgC{background:var(--ll);border-color:var(--lav);color:var(--ld);}
+.cal-cell.act{background:#2b2418;border-color:#5c4a24;color:#d9a441;}
+.act-chip{font-size:11px;padding:6px 12px;border:1.5px solid var(--border);border-radius:6px;background:var(--white);color:var(--tm);cursor:pointer;font-family:'Barlow',sans-serif;white-space:nowrap;}
+.act-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+.emoji-row{display:flex;gap:5px;overflow-x:auto;padding-bottom:6px;margin-bottom:8px;scrollbar-width:none;}
+.emoji-row::-webkit-scrollbar{display:none;}
+.emoji-btn{font-size:17px;width:38px;height:38px;flex-shrink:0;border:1.5px solid var(--border);border-radius:4px;background:var(--white);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
+.emoji-btn.sel{background:var(--rl);border-color:var(--rose);}
+.cal-ltr{font-family:'Oswald',serif;font-size:15px;font-weight:600;line-height:1;}
+.cal-legend{display:flex;gap:14px;justify-content:center;margin-top:16px;font-size:11px;color:var(--tm);flex-wrap:wrap;}
+.cal-legend span{display:inline-flex;align-items:center;gap:5px;}
+.cal-dot{width:10px;height:10px;border-radius:3px;display:inline-block;}
+
+/* PLAN EDITOR */
+.pe-tabs{display:flex;gap:8px;margin-bottom:14px;}
+.pe-tab{flex:1;padding:9px 4px;border:1.5px solid var(--border);border-radius:4px;background:var(--white);font-family:'Barlow',sans-serif;font-size:13px;color:var(--tl);cursor:pointer;}
+.pe-tab.aA{background:var(--rl);border-color:var(--rose);color:var(--rd);}
+.pe-tab.aB{background:var(--sl);border-color:var(--sage);color:var(--sd);}
+.pe-tab.aC{background:var(--ll);border-color:var(--lav);color:var(--ld);}
+.pe-row{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--cream);border-radius:4px;margin-bottom:5px;}
+.pe-row.hidden-ex{opacity:.45;}
+.pe-name{flex:1;font-size:13px;min-width:0;}
+.pe-name .strike{text-decoration:line-through;}
+.pe-btn{font-size:11px;padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;background:var(--white);color:var(--tm);cursor:pointer;font-family:'Barlow',sans-serif;white-space:nowrap;flex-shrink:0;}
+#pe-list{max-height:55vh;overflow-y:auto;}
+
+/* PAUSE OVERLAY */
+.pause-ov{display:none;position:fixed;inset:0;z-index:100;background:rgba(8,9,11,.72);backdrop-filter:blur(6px);align-items:flex-end;justify-content:center;}
+.pause-ov.on{display:flex;}
+.pause-sheet{background:var(--white);border-radius:10px 10px 0 0;width:100%;max-width:500px;padding:26px 22px 48px;text-align:center;animation:su .3s cubic-bezier(.34,1.56,.64,1);}
+@keyframes su{from{transform:translateY(60px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+.p-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 18px;}
+.p-lbl{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--tl);margin-bottom:6px;}
+.p-count{font-family:'Oswald',serif;font-size:70px;font-weight:300;color:var(--text);line-height:1;margin-bottom:8px;}
+.p-prog{width:100%;height:4px;background:var(--border);border-radius:2px;margin-bottom:18px;overflow:hidden;}
+.p-bar{height:100%;background:linear-gradient(90deg,var(--rose),var(--rd));border-radius:2px;transition:width .9s linear;}
+.p-btns{display:flex;gap:10px;}
+.p-skip{flex:1;padding:12px;border:1.5px solid var(--border);border-radius:5px;background:none;font-family:'Barlow',sans-serif;font-size:13px;color:var(--tm);cursor:pointer;}
+.p-add{flex:1;padding:12px;border:1.5px solid var(--rose);border-radius:5px;background:var(--rl);font-family:'Barlow',sans-serif;font-size:13px;color:var(--rd);cursor:pointer;}
+
+/* MODALS */
+.modal-ov{display:none;position:fixed;inset:0;z-index:200;background:rgba(8,9,11,.72);backdrop-filter:blur(6px);align-items:flex-end;justify-content:center;}
+.modal-ov.on{display:flex;}
+.msheet{background:var(--white);border-radius:10px 10px 0 0;width:100%;max-width:500px;padding:26px 22px 48px;animation:su .3s cubic-bezier(.34,1.56,.64,1);}
+.m-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 18px;}
+.m-title{font-family:'Oswald',serif;font-size:22px;font-weight:400;margin-bottom:14px;}
+.m-label{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--tl);margin-bottom:5px;}
+.m-inp{width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:5px;font-family:'Barlow',sans-serif;font-size:15px;color:var(--text);background:var(--cream);outline:none;margin-bottom:12px;}
+.m-inp:focus{border-color:var(--lav);}
+.m-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:14px;}
+.m-row .m-inp{margin-bottom:0;}
+.m-save{width:100%;padding:14px;border:none;border-radius:5px;background:linear-gradient(135deg,var(--rose),var(--rd));color:white;font-family:'Barlow',sans-serif;font-size:14px;font-weight:500;cursor:pointer;}
+.m-cancel{width:100%;padding:11px;background:none;border:none;color:var(--tl);font-family:'Barlow',sans-serif;font-size:13px;cursor:pointer;margin-top:5px;}
+
+@media(max-width:380px){.day-grid{gap:6px;}.day-card{padding:10px 4px;}.stat-summary{grid-template-columns:1fr 1fr;}.gym-btn{font-size:11px;padding:8px 4px;}.gym-toggle{font-size:11px;}.tbar{padding:8px 12px;gap:8px;}.tdisp{font-size:22px;}.fin-btn{padding:7px 12px;font-size:12px;}}
+.msheet{max-height:85vh;overflow-y:auto;}
+.pause-sheet{max-height:85vh;overflow-y:auto;}
+#exlib-list{max-height:50vh;overflow-y:auto;}
+</style>
+</head>
+<body>
+
+<!-- HOME -->
+<div class="screen active" id="screen-home">
+  <div class="hdr">
+    <div class="eyebrow">Iron Log</div>
+    <h1 class="h1">Train<em>.</em> Track<em>.</em> <em>Repeat</em></h1>
+    <p class="hsub" id="home-sub"></p>
+    <div id="sync-badge" style="font-size:10px;color:var(--tl);margin-top:3px"></div>
+  </div>
+  <div class="cnt" id="home-log"></div>
+  <button class="fab" onclick="goSetup()" title="Neues Training">+</button>
+</div>
+
+<!-- STATS -->
+<div class="screen" id="screen-stats">
+  <div class="hdr">
+    <div class="eyebrow">Statistik</div>
+    <h1 class="h1">Fort<em>schritt</em></h1>
+  </div>
+  <div class="cnt" id="stats-content"></div>
+</div>
+
+<!-- KALENDER -->
+<div class="screen" id="screen-cal">
+  <div class="hdr">
+    <div class="eyebrow">Kalender</div>
+    <h1 class="h1">Deine <em>Trainings</em></h1>
+  </div>
+  <div class="cnt" id="cal-content"></div>
+</div>
+
+<!-- SETUP -->
+<div class="screen" id="screen-setup">
+  <div class="hdr">
+    <div class="hdr-back" onclick="goHome()">←</div>
+    <div class="eyebrow">Neues Training</div>
+    <h1 class="h1">Tag <em>wählen</em></h1>
+  </div>
+  <div class="cnt">
+    <div class="setup-sec">
+      <div class="setup-lbl">Datum</div>
+      <input type="date" class="dinput" id="setup-date">
+    </div>
+    <div class="setup-sec">
+      <div class="setup-lbl" style="display:flex;align-items:center;justify-content:space-between">Gym <button onclick="openAddGym()" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:8px;background:none;cursor:pointer;font-family:'Barlow',sans-serif;color:var(--tl)">+ Gym</button></div>
+      <div id="gym-toggle-wrap"></div>
+    </div>
+    <div class="setup-sec">
+      <div class="setup-lbl" style="display:flex;align-items:center;justify-content:space-between">Trainingstag <button onclick="openPlanEdit()" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:8px;background:none;cursor:pointer;font-family:'Barlow',sans-serif;color:var(--tl)">✎ Plan bearbeiten</button></div>
+      <div class="day-grid" id="day-grid"></div>
+    </div>
+    <button class="start-btn" id="start-btn" onclick="startSession()">Training starten →</button>
+  </div>
+</div>
+
+<!-- ACTIVE -->
+<div class="screen" id="screen-active">
+  <div class="hdr" style="padding-bottom:12px">
+    <div class="eyebrow" id="act-eye"></div>
+    <h1 class="h1" id="act-title" style="font-size:22px"></h1>
+  </div>
+  <div class="tbar">
+    <div class="t-left">
+      <button class="ic-btn" onclick="leaveSession()" title="Verlassen" style="font-size:16px">←</button>
+      <div>
+        <div class="tlbl">Session</div>
+        <div class="tdisp" id="sess-timer">00:00</div>
+      </div>
+      <div id="act-gym-badge"></div>
+    </div>
+    <button class="fin-btn" onclick="confirmFinish()">Beenden ✓</button>
+  </div>
+  <div class="cnt" id="act-exs"></div>
+</div>
+
+<!-- DETAIL / EDIT -->
+<div class="screen" id="screen-detail">
+  <div class="hdr">
+    <div class="hdr-back" onclick="goHome()">←</div>
+    <div class="eyebrow" id="det-eye"></div>
+    <h1 class="h1" id="det-title" style="font-size:22px"></h1>
+    <p class="hsub" id="det-sub"></p>
+    <div class="hdr-action">
+      <button class="ic-btn" onclick="toggleEditMode()" id="edit-toggle-btn" style="font-size:15px">✎</button>
+    </div>
+  </div>
+  <div class="cnt" id="det-content"></div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bnav" id="bnav">
+  <button class="bnav-btn nav-active" id="nav-home" onclick="goHome()">
+    <span class="icon">📋</span>Trainings
+  </button>
+  <button class="bnav-btn" id="nav-cal" onclick="goCal()">
+    <span class="icon">📅</span>Kalender
+  </button>
+  <button class="bnav-btn" id="nav-stats" onclick="goStats()">
+    <span class="icon">📊</span>Statistik
+  </button>
+</nav>
+
+<!-- PAUSE OVERLAY -->
+<div class="pause-ov" id="pause-ov">
+  <div class="pause-sheet">
+    <div class="p-handle"></div>
+    <div class="p-lbl">Pause</div>
+    <div class="p-count" id="p-count">60</div>
+    <div class="p-prog"><div class="p-bar" id="p-bar" style="width:100%"></div></div>
+    <div class="p-btns">
+      <button class="p-skip" onclick="skipPause()">Überspringen</button>
+      <button class="p-add" onclick="addPause()">+30 Sek</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: REPLACE EXERCISE -->
+<div class="modal-ov" id="modal-replace">
+  <div class="msheet">
+    <div class="m-handle"></div>
+    <div class="m-title">Übung ersetzen</div>
+    <input type="text" class="m-inp" id="rep-inp" placeholder="Neuer Übungsname...">
+    <button class="m-save" onclick="saveReplace()">Speichern ✓</button>
+    <button class="m-cancel" onclick="closeModal('modal-replace')">Abbrechen</button>
+  </div>
+</div>
+
+<!-- MODAL: ADD EXERCISE -->
+<div class="modal-ov" id="modal-addex">
+  <div class="msheet">
+    <div class="m-handle"></div>
+    <div class="m-title">Übung hinzufügen</div>
+    <div class="m-label">Name</div>
+    <input type="text" class="m-inp" id="addex-name" placeholder="Übungsname..." list="exnames-dl" oninput="onAddExName(this.value)" autocomplete="off">
+    <datalist id="exnames-dl"></datalist>
+    <div class="m-row">
+      <div>
+        <div class="m-label">Sätze</div>
+        <input type="number" class="m-inp" id="addex-sets" value="3" min="1">
+      </div>
+      <div>
+        <div class="m-label">Reps</div>
+        <input type="number" class="m-inp" id="addex-reps" value="10" min="1">
+      </div>
+      <div>
+        <div class="m-label">kg</div>
+        <input type="number" class="m-inp" id="addex-weight" value="0" step="0.5">
+      </div>
+      <div>
+        <div class="m-label">Pause s</div>
+        <input type="number" class="m-inp" id="addex-rest" value="60" step="15">
+      </div>
+    </div>
+    <button class="m-save" onclick="saveAddEx()">Hinzufügen ✓</button>
+    <button class="m-cancel" onclick="closeModal('modal-addex')">Abbrechen</button>
+  </div>
+</div>
+
+<!-- MODAL: EXERCISE LIBRARY -->
+<div class="modal-ov" id="modal-exlib">
+  <div class="msheet">
+    <div class="m-handle"></div>
+    <div class="m-title">Übung hinzufügen</div>
+    <input type="text" class="m-inp" id="exlib-search" placeholder="Suchen..." oninput="renderExLib(this.value)" autocomplete="off">
+    <div id="exlib-list"></div>
+    <button class="m-save" style="margin-top:10px" onclick="closeModal('modal-exlib');openNewEx()">+ Neue Übung erstellen</button>
+    <button class="m-cancel" onclick="closeModal('modal-exlib')">Abbrechen</button>
+  </div>
+</div>
+
+<!-- MODAL: ADD/EDIT GYM -->
+<div class="modal-ov" id="modal-addgym">
+  <div class="msheet">
+    <div class="m-handle"></div>
+    <div class="m-title" id="addgym-title">Gym hinzufügen</div>
+    <div class="m-label">Name</div>
+    <input type="text" class="m-inp" id="addgym-name" placeholder="z.B. FitX Köln" maxlength="20">
+    <button class="m-save" id="addgym-save" onclick="saveAddGym()">Hinzufügen ✓</button>
+    <button class="del-session-btn" id="addgym-delete" style="display:none" onclick="deleteCustomGym(editingGymId)">🗑 Gym löschen</button>
+    <button class="m-cancel" onclick="closeModal('modal-addgym')">Abbrechen</button>
+  </div>
+</div>
+
+<!-- MODAL: PLAN EDITOR -->
+<div class="modal-ov" id="modal-planedit">
+  <div class="msheet">
+    <div class="m-handle"></div>
+    <div class="m-title">Plan bearbeiten</div>
+    <div class="pe-tabs" id="pe-tabs"></div>
+    <div id="pe-list"></div>
+    <button class="m-cancel" onclick="closeModal('modal-planedit')">Fertig</button>
+  </div>
+</div>
+
+<!-- MODAL: ADD TO PLAN -->
+<div class="modal-ov" id="modal-addtoplan">
+  <div class="msheet">
+    <div class="m-handle"></div>
+    <div class="m-title" id="addtoplan-title">Zu Plan hinzufügen</div>
+    <p style="font-size:13px;color:var(--tl);margin-bottom:16px">Welcher Tag soll diese Übung dauerhaft enthalten?</p>
+    <div style="display:flex;gap:8px;margin-bottom:20px" id="addtoplan-days"></div>
+    <button class="m-cancel" onclick="closeModal('modal-addtoplan')">Abbrechen</button>
+  </div>
+</div>
+
+<!-- MODAL: TAG (Kalender) -->
+<div class="modal-ov" id="modal-day">
+  <div class="msheet">
+    <div class="m-handle"></div>
+    <div class="m-title" id="day-title"></div>
+    <div id="day-body"></div>
+    <button class="m-cancel" onclick="closeModal('modal-day')">Schließen</button>
+  </div>
+</div>
+
+<!-- MODAL: CLOUD SYNC -->
+<div class="modal-ov" id="modal-sync">
+  <div class="msheet">
+    <div class="m-handle"></div>
+    <div class="m-title">☁️ Cloud-Sync</div>
+    <div id="sync-body"></div>
+  </div>
+</div>
+
+<!-- MODAL: EXPORT -->
+<div class="modal-ov" id="modal-export">
+  <div class="msheet">
+    <div class="m-handle"></div>
+    <div class="m-title">Daten exportieren</div>
+    <p style="font-size:13px;color:var(--tl);margin-bottom:12px;">Alles markieren und kopieren — als Backup oder zum Übertragen.</p>
+    <textarea id="export-ta" style="width:100%;height:140px;border:1.5px solid var(--border);border-radius:5px;padding:12px;font-family:'Barlow',sans-serif;font-size:11px;color:var(--text);background:var(--cream);resize:none;" readonly onclick="this.select()"></textarea>
+    <button class="m-save" onclick="selectExportText()">Alles markieren 📋</button>
+    <button class="m-cancel" onclick="closeModal('modal-export')">Schließen</button>
+  </div>
+</div>
+
+<!-- MODAL: IMPORT -->
+<div class="modal-ov" id="modal-import">
+  <div class="msheet">
+    <div class="m-handle"></div>
+    <div class="m-title">Daten importieren</div>
+    <p style="font-size:13px;color:var(--tl);margin-bottom:12px;">Kopierten Text aus der alten App hier einfügen:</p>
+    <textarea id="import-ta" style="width:100%;height:140px;border:1.5px solid var(--border);border-radius:5px;padding:12px;font-family:'Barlow',sans-serif;font-size:11px;color:var(--text);background:var(--cream);resize:none;" placeholder="Hier einfügen..."></textarea>
+    <button class="m-save" onclick="doImport()">Importieren ✓</button>
+    <button class="m-cancel" onclick="closeModal('modal-import')">Abbrechen</button>
+  </div>
+</div>
+
+<!-- MODAL: EDIT DURATION -->
+<div class="modal-ov" id="modal-dur">
+  <div class="msheet">
+    <div class="m-handle"></div>
+    <div class="m-title">Dauer bearbeiten</div>
+    <div class="m-label">Dauer (Minuten)</div>
+    <input type="number" class="m-inp" id="dur-inp" min="1">
+    <button class="m-save" onclick="saveDuration()">Speichern ✓</button>
+    <button class="m-cancel" onclick="closeModal('modal-dur')">Abbrechen</button>
+  </div>
+</div>
+
+<script>
+// ── CUES ──────────────────────────────────────────────────────────────────
+const CUES = {
+  'Beinpresse':['Feet shoulder-width, slightly turned out · push through heels',"Don't lock knees · lower 3 sec, push explosively"],
+  'Glute Press':['Squeeze glutes hard at top · mind-muscle connection',"Don't hyperextend lower back · full range"],
+  'Hip Abduction':['Sit upright · push knees out · feel outer glutes burn','Control the return · slow and deliberate'],
+  'Hip Adduction':['Squeeze inner thighs · slow and controlled','Sit upright · full range both directions'],
+  'Hamstring Curl':['Full range always · squeeze hard at peak','Curl slowly · full extension at bottom'],
+  'Lat Pulldown':['Pull to upper chest · lead with elbows down and back','Lean back ~20° · squeeze lats at bottom · shoulders packed'],
+  'Assisted Pullup':['Lead with elbows · control the negative · full hang at bottom'],
+  'Dumbbell Row':["Flat back · pull elbow to hip, not straight up","Full stretch at bottom · don't rotate torso"],
+  'Reverse Flys':['Hinge 45° · lead with elbows · pinch shoulder blades','Keep weight light — rear delts are small muscles'],
+  'Rope Pushdown':["Elbows pinned to sides · push rope apart at bottom","Full extension · slow return · don't flare elbows"],
+  'Bicep Curl':["Don't swing · upper arms stay still",'Supinate wrist at top · slow lowering'],
+  'TRX Pike':['Drive hips to ceiling · hands under shoulders · core braced'],
+  'TRX Crunch':['Bring knees to chest in one controlled movement · return to plank with control'],
+  'Dead Hang':['Fully relax · shoulders packed down · breathe'],
+  'Cable Ext. Rotation':['Elbow 90° pinned to side · rotate outward slowly · very light'],
+  'Cable Ext. Rot. @90°':['Arm at shoulder height · rotate forearm toward ceiling · target >4.5kg'],
+  'Kettlebell Swing':['Hip hinge NOT a squat · push hips back aggressively','Drive hips forward explosively — bell floats · squeeze glutes at top'],
+  'Landmine Rotation':['Rotation from core and hips, not arms','Power starts at the feet · arms just hold the bar'],
+  'Hip Thrusts':['Upper back on bench · bar on hip crease with pad','Drive through heels · squeeze glutes · chin tucked · body parallel at top'],
+  'Smith Romanian Deadlift':['Step under bar for extra range · palms down · proud chest','Push hips back · push knees out · lower to shin · explosive thrust'],
+  'Seated Row':['Sit tall · pull to belly button, elbows close · squeeze shoulder blades','Pause 1 second at peak contraction'],
+  'Smith Machine Squat':['Feet slightly forward · drive knees out · break parallel · push through heels'],
+  'Bulgarian Split Squat':['Rear foot elevated · front foot far forward · lower straight down','Torso upright · think hip slightly open'],
+  'Hyperextension':['Rise only to parallel · squeeze glutes at top · slow and controlled'],
+  'Overhead Shoulder Press':['Brace core · press straight up · shrug slightly at top · lower 3 sec'],
+  'Lateral Raises':['Lead with elbows · stop at shoulder height · slow lowering is where gains happen'],
+  'Cable Face Pull':['Cable at face height · pull to forehead · hands finish behind ears'],
+};
+
+// ── PLAN DATA ─────────────────────────────────────────────────────────────
+const DEFAULT_PLANS = {
+  A:{name:'Back & Strength',sections:[
+    {label:'Lower Body',exs:[
+      {id:'a1', name:'Beinpresse',           s:3, r:10, w:150, rest:90},
+      {id:'a2', name:'Glute Press',           s:3, r:10, w:50,  rest:90},
+      {id:'a3ab',name:'Hip Abduction',        s:3, r:12, w:45,  rest:60},
+      {id:'a3ad',name:'Hip Adduction',        s:3, r:12, w:30,  rest:60},
+      {id:'a4', name:'Hamstring Curl',        s:3, r:8,  w:23,  rest:75, opt:true},
+    ]},
+    {label:'Back & Arms',exs:[
+      {id:'a5ld',name:'Lat Pulldown',         s:3, r:8,  w:25,  rest:75},
+      {id:'a5pu',name:'Assisted Pullup',      s:3, r:6,  w:0,   rest:75},
+      {id:'a6', name:'Dumbbell Row',          s:3, r:10, w:8,   rest:60},
+      {id:'a7', name:'Reverse Flys',          s:3, r:10, w:3,   rest:90},
+      {id:'a8', name:'Rope Pushdown',         s:3, r:10, w:13.5,rest:60},
+      {id:'a9', name:'Bicep Curl',            s:3, r:8,  w:6,   rest:60},
+    ]},
+    {label:'Core & Shoulder Health',exs:[
+      {id:'a10',name:'TRX Pike',              s:3, r:12, w:0,   rest:45},
+      {id:'a11',name:'TRX Crunch',            s:3, r:12, w:0,   rest:45},
+      {id:'a12',name:'Dead Hang',             s:2, r:45, w:0,   rest:60},
+      {id:'a13',name:'Cable Ext. Rotation',   s:3, r:8,  w:2.5, rest:45, opt:true},
+      {id:'a14',name:'Cable Ext. Rot. @90°',  s:3, r:12, w:4.5, rest:45, opt:true},
+    ]},
+  ]},
+  B:{name:'Glutes & Power',sections:[
+    {label:'Power & Lower Body',exs:[
+      {id:'b1', name:'Kettlebell Swing',       s:3, r:12, w:20,  rest:60},
+      {id:'b2', name:'Landmine Rotation',      s:3, r:10, w:0,   rest:60},
+      {id:'b3', name:'Hip Thrusts',            s:3, r:10, w:50,  rest:90},
+      {id:'b4', name:'Smith Romanian Deadlift',s:4, r:8,  w:45,  rest:90},
+      {id:'b5', name:'Hamstring Curl',         s:3, r:10, w:23,  rest:75},
+    ]},
+    {label:'Back & Biceps',exs:[
+      {id:'b6', name:'Seated Row',             s:4, r:8,  w:27.5,rest:75},
+      {id:'b7', name:'Reverse Flys',           s:3, r:8,  w:3,   rest:75},
+      {id:'b8', name:'Dead Hang',              s:2, r:45, w:0,   rest:60},
+      {id:'b9', name:'Cable Ext. Rotation',    s:3, r:8,  w:2.5, rest:45, opt:true},
+      {id:'b10',name:'Cable Ext. Rot. @90°',   s:3, r:12, w:4.5, rest:45, opt:true},
+    ]},
+  ]},
+  C:{name:'Squats & Shoulders',sections:[
+    {label:'Lower Body',exs:[
+      {id:'c1', name:'Smith Machine Squat',    s:3, r:12, w:145, rest:90},
+      {id:'c2', name:'Bulgarian Split Squat',  s:3, r:10, w:12,  rest:75},
+      {id:'c3', name:'Hyperextension',         s:3, r:12, w:5,   rest:60},
+    ]},
+    {label:'Shoulders',exs:[
+      {id:'c4', name:'Overhead Shoulder Press',s:3, r:10, w:9,   rest:90},
+      {id:'c5', name:'Lateral Raises',         s:3, r:12, w:5,   rest:60},
+      {id:'c6', name:'Cable Face Pull',        s:3, r:12, w:9.5, rest:60},
+    ]},
+    {label:'Back',exs:[
+      {id:'c7', name:'Lat Pulldown',           s:3, r:8,  w:25,  rest:75},
+    ]},
+    {label:'Shoulder Health',exs:[
+      {id:'c8', name:'Dead Hang',              s:2, r:45, w:0,   rest:60},
+      {id:'c9', name:'Cable Ext. Rotation',    s:3, r:8,  w:2.5, rest:45, opt:true},
+      {id:'c10',name:'Cable Ext. Rot. @90°',   s:3, r:12, w:4.5, rest:45, opt:true},
+    ]},
+  ]},
+};
+
+// ── STATE ─────────────────────────────────────────────────────────────────
+let db = (() => { try { return JSON.parse(localStorage.getItem('ironlog')||'{}'); } catch(e) { return {}; } })();
+let chosenDay = null, chosenGym = null;
+
+// Aktive Pläne: eigene aus dem Speicher, sonst die Vorlage
+function PLANS() { return db.plans || DEFAULT_PLANS; }
+// Vor dem ersten Bearbeiten die Vorlage in den Speicher kopieren
+function ensureEditablePlans() {
+  if (!db.plans) db.plans = JSON.parse(JSON.stringify(DEFAULT_PLANS));
+  return db.plans;
+}
+// Übungen eines Tages als flache Liste (mit Sektion pro Übung)
+function planExercises(day) {
+  const out = [];
+  (PLANS()[day]?.sections||[]).forEach(sec => {
+    sec.exs.forEach((ex,i) => out.push({...ex, section: i===0 ? sec.label : null}));
+  });
+  return out;
+}
+// Flache Liste zurück in Sektionen gruppieren
+function setPlanExercises(day, list) {
+  ensureEditablePlans();
+  const sections = [];
+  list.forEach(ex => {
+    const {section, ...rest} = ex;
+    if (section || !sections.length) sections.push({label: section || '', exs: []});
+    sections[sections.length-1].exs.push(rest);
+  });
+  db.plans[day].sections = sections;
+  saveDB();
+}
+let _audioCtx = null;
+function getAudio() {
+  if (!_audioCtx) _audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  if (_audioCtx.state === 'suspended') _audioCtx.resume();
+  return _audioCtx;
+}
+function playBeep() {
+  try {
+    const ctx = getAudio();
+    [[880,0,0.15],[660,0.18,0.12],[880,0.32,0.18]].forEach(([freq,start,dur]) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value = freq; o.type = 'sine';
+      g.gain.setValueAtTime(0.25, ctx.currentTime+start);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+start+dur);
+      o.start(ctx.currentTime+start); o.stop(ctx.currentTime+start+dur+0.01);
+    });
+  } catch(e) {}
+}
+let session = null;
+let sessIv = null, pauseIv = null;
+let pauseTotal = 0, pauseLeft = 0;
+let replaceIdx = null;
+let editMode = false;
+let editSessionId = null;
+let exLibExpanded = new Set();
+let _exGroups = null; // Cache für getAllExerciseGroups, wird bei saveDB invalidiert
+let syncCode = localStorage.getItem('ironlog_sync') || null;
+let syncStatus = 'off'; // off | connecting | on | error
+let _syncTimer = null;
+
+function saveDB() {
+  try {
+    localStorage.setItem('ironlog', JSON.stringify(db));
+    localStorage.setItem('ironlog_updated', String(Date.now()));
+  } catch(e) {}
+  _exGroups = null;
+  queueSyncPush();
+}
+
+function queueSyncPush() {
+  if (!syncCode || !window._syncPush) return;
+  clearTimeout(_syncTimer);
+  _syncTimer = setTimeout(() => window._syncPush(syncCode, db), 800);
+}
+
+// Sessions chronologisch (Datum, dann Erstellzeit) — Einfüge-Reihenfolge ist
+// nach Import/Nachtragen nicht verlässlich
+function sessionsByDate() {
+  return (db.sessions||[]).slice().sort((a,b) => a.date.localeCompare(b.date) || ((+a.id||0)-(+b.id||0)));
+}
+function saveActive() { try { if(session) localStorage.setItem('ironlog_active', JSON.stringify(session)); else localStorage.removeItem('ironlog_active'); } catch(e) {} }
+function loadActive() { try { return JSON.parse(localStorage.getItem('ironlog_active')||'null'); } catch(e) { return null; } }
+
+// ── NAVIGATION ────────────────────────────────────────────────────────────
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-'+id).classList.add('active');
+  const hasNav = id==='home' || id==='stats' || id==='cal';
+  document.getElementById('bnav').style.display = hasNav ? 'flex' : 'none';
+  document.getElementById('nav-home').classList.toggle('nav-active', id==='home');
+  document.getElementById('nav-cal').classList.toggle('nav-active', id==='cal');
+  document.getElementById('nav-stats').classList.toggle('nav-active', id==='stats');
+  window.scrollTo(0,0);
+}
+
+function goHome() { if(session){saveActive();} show('home'); renderHome(); }
+function leaveSession() { clearInterval(sessIv); sessIv = null; saveActive(); show('home'); renderHome(); }
+function resumeSession() {
+  session = loadActive();
+  if(!session) return;
+  renderActive();
+  show('active');
+  startSessTimer();
+  // Restore pause if it was running when app was closed
+  if (session.pauseEndTime) {
+    const remaining = Math.round((session.pauseEndTime - Date.now()) / 1000);
+    if (remaining > 0) {
+      pauseTotal = session.pauseTotal || remaining;
+      pauseLeft = remaining;
+      updPauseUI();
+      document.getElementById('pause-ov').classList.add('on');
+      pauseIv = setInterval(tickPause, 500);
+    } else {
+      // Pause already finished while closed — clean up silently
+      session.pauseEndTime = null;
+      session.pauseTotal = null;
+      saveActive();
+    }
+  }
+}
+function goStats() { renderStats(); show('stats'); }
+function goSetup() {
+  try { db = JSON.parse(localStorage.getItem('ironlog')||'{}'); } catch(e) {}
+  chosenDay = null; chosenGym = null;
+  document.getElementById('setup-date').value = new Date().toISOString().split('T')[0];
+  renderDayGrid();
+  document.getElementById('start-btn').className='start-btn';
+  renderGymToggle();
+  show('setup');
+}
+
+// ── GYM INFO HELPER ───────────────────────────────────────────────────────
+function gymInfo(g) {
+  const cg = (db.customGyms||[]).find(x=>x.id===g);
+  if (cg) return {label:cg.label, cls:'gp-bs', icon:'📍'};
+  return {label:'Gym', cls:'gp-evo', icon:'🏋️'};
+}
+
+// ── HOME ──────────────────────────────────────────────────────────────────
+function renderHome() {
+  const sessions = db.sessions||[];
+  document.getElementById('home-sub').textContent = sessions.length
+    ? sessions.length+' Session'+(sessions.length!==1?'s':'')+' gesamt' : 'Bereit zum ersten Training?';
+
+  const syncBanner = (!syncCode && !localStorage.getItem('ironlog_sync_dismissed'))
+    ? `<div class="s-card" style="border-style:dashed" onclick="openSyncModal()">
+        <div class="sbadge" style="background:var(--ll);color:var(--ld);font-size:17px">☁️</div>
+        <div class="s-info">
+          <div class="s-name">Cloud-Backup einrichten</div>
+          <div class="s-meta">Nie wieder Daten verlieren · antippen</div>
+        </div>
+        <button class="ic-btn" onclick="dismissSyncBanner(event)">✕</button>
+      </div>` : '';
+
+  const active = loadActive();
+  const resumeBanner = active ? `<div class="resume-card" onclick="resumeSession()">
+    <div class="resume-left">
+      <div class="resume-icon bg${active.day}">${active.day}</div>
+      <div>
+        <div style="font-size:13px;font-weight:500">Training fortsetzen</div>
+        <div style="font-size:11px;color:var(--tl);margin-top:2px">Day ${active.day} · ${fmtDate(active.date)}</div>
+      </div>
+    </div>
+    <span style="font-size:18px;color:var(--rd)">▶</span>
+  </div>` : '';
+
+  if (!sessions.length && !active) {
+    document.getElementById('home-log').innerHTML =
+      syncBanner + resumeBanner + `<div class="empty"><div class="big">💪</div><p>Noch keine Sessions gespeichert.<br>Tippe + um zu starten.</p></div>`;
+    updateSyncBadge();
+    return;
+  }
+  document.getElementById('home-log').innerHTML = syncBanner + resumeBanner + sessionsByDate().reverse().map(s => {
+    const gi = gymInfo(s.gym);
+    const gym = `<span class="gym-pill ${gi.cls}">${gi.icon} ${gi.label}</span>`;
+    return `<div class="s-card" onclick="showDetail('${s.id}')">
+      <div class="sbadge bg${s.day}">${s.day}</div>
+      <div class="s-info">
+        <div class="s-name">Day ${s.day} · ${PLANS()[s.day].name}${gym}</div>
+        <div class="s-meta">${fmtDate(s.date)} · ${fmtDur(s.duration)}</div>
+      </div>
+      <span style="color:var(--tl);font-size:18px">›</span>
+    </div>`;
+  }).join('');
+  updateSyncBadge();
+}
+
+// ── STATS ─────────────────────────────────────────────────────────────────
+let statsEx = null;
+
+function gymColor(g) {
+  const cg = (db.customGyms||[]).find(x=>x.id===g);
+  if (cg) return {stroke:'var(--rd)', fill:'var(--rl)', label:cg.label};
+  return {stroke:'var(--sd)', fill:'var(--sl)', label:'Gym'};
+}
+
+function renderStats() {
+  const sessions = db.sessions||[];
+  const cnt = document.getElementById('stats-content');
+  if (!sessions.length) {
+    cnt.innerHTML = `<div class="stats-empty"><div class="big">📊</div><p>Noch keine Daten vorhanden.<br>Nach deiner ersten Session erscheint hier dein Fortschritt.</p><br><button onclick="openImport()" style="font-family:'Barlow',sans-serif;font-size:13px;padding:10px 22px;border:1.5px solid var(--border);border-radius:5px;background:var(--white);color:var(--tl);cursor:pointer;">📥 Daten importieren</button></div>`;
+    return;
+  }
+
+  const totalMin = sessions.reduce((a,s)=>a+(s.duration||0),0);
+
+  // Average rest days between sessions
+  const sorted = sessions.slice().sort((a,b)=>a.date.localeCompare(b.date));
+  let avgRest = '—';
+  if (sorted.length > 1) {
+    let totalDays = 0;
+    for (let i=1; i<sorted.length; i++) {
+      totalDays += (new Date(sorted[i].date) - new Date(sorted[i-1].date)) / 86400000;
+    }
+    avgRest = (totalDays / (sorted.length-1)).toFixed(1);
+  }
+
+  // Build exercise map: { exName: { gymId: [{date,w,reps}] } }
+  const exMap = {};
+  sorted.forEach(s => {
+    const gymId = normGym(s.gym);
+    s.exercises.forEach(ex => {
+      const validSets = ex.sets.filter(x=>x.weight>0 && x.reps>0);
+      if (!validSets.length) return;
+      const maxW = Math.max(...validSets.map(x=>x.weight));
+      const avgReps = Math.round(validSets.reduce((a,x)=>a+x.reps,0)/validSets.length);
+      if (!exMap[ex.name]) exMap[ex.name] = {};
+      if (!exMap[ex.name][gymId]) exMap[ex.name][gymId] = [];
+      exMap[ex.name][gymId].push({date:s.date, w:maxW, reps:avgReps});
+    });
+  });
+
+  const exNames = Object.keys(exMap).sort();
+  if (!statsEx || !exMap[statsEx]) statsEx = exNames[0]||null;
+  window._statsExMap = exMap;
+  window._statsExNames = exNames;
+
+  const chartHtml = statsEx ? bigChart(exMap[statsEx], statsEx) : '';
+  const selLabel = statsEx || 'Übung wählen...';
+
+  cnt.innerHTML = `
+    <div class="stat-summary">
+      <div class="stat-box"><div class="stat-val">${sessions.length}</div><div class="stat-nm">Sessions</div></div>
+      <div class="stat-box"><div class="stat-val">${Math.round(totalMin/60)}</div><div class="stat-nm">Minuten</div></div>
+      <div class="stat-box"><div class="stat-val">${avgRest}</div><div class="stat-nm">Ø Pause</div></div>
+    </div>
+    <div class="stat-slbl">Übung wählen</div>
+    <div class="ex-search-wrap">
+      <input class="ex-search-inp" id="ex-search-inp" type="text" placeholder="Übung suchen..." autocomplete="off"
+        value="${statsEx||''}"
+        oninput="filterExDrop(this.value)"
+        onfocus="this.select(); filterExDrop('')"
+        onkeydown="exDropKey(event)">
+      <div class="ex-dropdown" id="ex-dropdown"></div>
+    </div>
+    ${chartHtml}
+    <div style="margin-top:32px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+      <button onclick="openSyncModal()" style="font-family:'Barlow',sans-serif;font-size:13px;padding:10px 22px;border:1.5px solid var(--border);border-radius:5px;background:var(--white);color:var(--tl);cursor:pointer;">☁️ Sync</button>
+      <button onclick="openImport()" style="font-family:'Barlow',sans-serif;font-size:13px;padding:10px 22px;border:1.5px solid var(--border);border-radius:5px;background:var(--white);color:var(--tl);cursor:pointer;">📥 Importieren</button>
+      <button onclick="openExport()" style="font-family:'Barlow',sans-serif;font-size:13px;padding:10px 22px;border:1.5px solid var(--border);border-radius:5px;background:var(--white);color:var(--tl);cursor:pointer;">📤 Exportieren</button>
+    </div>`;
+}
+
+function filterExDrop(val) {
+  const names = window._statsExNames || [];
+  const q = val.trim().toLowerCase();
+  const matches = q ? names.filter(n=>n.toLowerCase().includes(q)) : names;
+  const dd = document.getElementById('ex-dropdown');
+  if (!dd) return;
+  if (!matches.length) { dd.classList.remove('open'); return; }
+  dd.innerHTML = matches.map(n=>
+    `<div class="ex-drop-item${n===statsEx?' hi':''}" onmousedown="pickExByName('${n.replace(/'/g,"\\'")}')"> ${n}</div>`
+  ).join('');
+  dd.classList.add('open');
+}
+
+function pickExByName(name) {
+  statsEx = name;
+  const dd = document.getElementById('ex-dropdown');
+  if (dd) dd.classList.remove('open');
+  const inp = document.getElementById('ex-search-inp');
+  if (inp) inp.value = name;
+  // Re-render just the chart part
+  const exMap = window._statsExMap || {};
+  const chartEl = document.querySelector('.chart-card');
+  const newHtml = statsEx && exMap[statsEx] ? bigChart(exMap[statsEx], statsEx) : '';
+  if (chartEl) chartEl.outerHTML = newHtml;
+  else {
+    const wrap = document.getElementById('ex-search-wrap')?.parentElement;
+    if (wrap) {
+      const existing = wrap.querySelector('.chart-card');
+      if (existing) existing.outerHTML = newHtml;
+      else wrap.insertAdjacentHTML('beforeend', newHtml);
+    }
+  }
+}
+
+function exDropKey(e) {
+  const dd = document.getElementById('ex-dropdown');
+  if (!dd) return;
+  const items = dd.querySelectorAll('.ex-drop-item');
+  const hiIdx = [...items].findIndex(el=>el.classList.contains('hi'));
+  if (e.key==='ArrowDown') {
+    e.preventDefault();
+    const next = Math.min(hiIdx+1, items.length-1);
+    items.forEach((el,i)=>el.classList.toggle('hi',i===next));
+  } else if (e.key==='ArrowUp') {
+    e.preventDefault();
+    const prev = Math.max(hiIdx-1, 0);
+    items.forEach((el,i)=>el.classList.toggle('hi',i===prev));
+  } else if (e.key==='Enter') {
+    const hi = dd.querySelector('.ex-drop-item.hi');
+    if (hi) hi.dispatchEvent(new MouseEvent('mousedown'));
+    else dd.classList.remove('open');
+  } else if (e.key==='Escape') {
+    dd.classList.remove('open');
+  }
+}
+
+document.addEventListener('click', e=>{
+  const wrap = document.getElementById('ex-search-inp');
+  if (wrap && !wrap.closest('.ex-search-wrap')?.contains(e.target)) {
+    document.getElementById('ex-dropdown')?.classList.remove('open');
+  }
+});
+
+function openExport() {
+  document.getElementById('export-ta').value = localStorage.getItem('ironlog') || '{}';
+  openModal('modal-export');
+  setTimeout(() => { const ta = document.getElementById('export-ta'); ta.select(); }, 200);
+}
+function selectExportText() {
+  const ta = document.getElementById('export-ta');
+  ta.select(); ta.setSelectionRange(0, 99999);
+  try { document.execCommand('copy'); alert('Kopiert! ✓'); } catch(e) {}
+}
+
+function openImport() {
+  document.getElementById('import-ta').value = '';
+  openModal('modal-import');
+  setTimeout(() => document.getElementById('import-ta').focus(), 100);
+}
+function doImport() {
+  const raw = document.getElementById('import-ta').value.trim();
+  if (!raw) return alert('Nichts eingefügt.');
+  try {
+    const parsed = JSON.parse(raw);
+    const cur = JSON.parse(localStorage.getItem('ironlog')||'{}');
+    const existingIds = new Set((cur.sessions||[]).map(s=>s.id));
+    const newSessions = (parsed.sessions||[]).filter(s=>!existingIds.has(s.id));
+    cur.sessions = [...(cur.sessions||[]), ...newSessions];
+    const existingEx = new Set((cur.customExercises||[]).map(e=>e.name));
+    const newEx = (parsed.customExercises||[]).filter(e=>!existingEx.has(e.name));
+    cur.customExercises = [...(cur.customExercises||[]), ...newEx];
+    const existingGymIds = new Set((cur.customGyms||[]).map(g=>g.id));
+    const newGyms = (parsed.customGyms||[]).filter(g=>!existingGymIds.has(g.id));
+    cur.customGyms = [...(cur.customGyms||[]), ...newGyms];
+    // Merge pinned plan exercises (📌) per day
+    if (parsed.customPlanExercises) {
+      if (!cur.customPlanExercises) cur.customPlanExercises = {};
+      Object.entries(parsed.customPlanExercises).forEach(([day, exs]) => {
+        if (!cur.customPlanExercises[day]) cur.customPlanExercises[day] = [];
+        const names = new Set(cur.customPlanExercises[day].map(e=>e.name));
+        exs.forEach(e => { if (!names.has(e.name)) cur.customPlanExercises[day].push(e); });
+      });
+    }
+    // Merge activities
+    const actIds = new Set((cur.activities||[]).map(a=>a.id));
+    cur.activities = [...(cur.activities||[]), ...(parsed.activities||[]).filter(a=>!actIds.has(a.id))];
+    // Merge hidden plan exercises per day
+    if (parsed.hiddenPlanExercises) {
+      if (!cur.hiddenPlanExercises) cur.hiddenPlanExercises = {};
+      Object.entries(parsed.hiddenPlanExercises).forEach(([day, names]) => {
+        cur.hiddenPlanExercises[day] = [...new Set([...(cur.hiddenPlanExercises[day]||[]), ...names])];
+      });
+    }
+    if (parsed.plans && !cur.plans) cur.plans = parsed.plans;
+    cur.sessions.sort((a,b) => a.date.localeCompare(b.date) || ((+a.id||0)-(+b.id||0)));
+    localStorage.setItem('ironlog', JSON.stringify(cur));
+    localStorage.setItem('ironlog_updated', String(Date.now()));
+    db = cur;
+    _exGroups = null;
+    queueSyncPush();
+    closeModal('modal-import');
+    alert(`✓ ${newSessions.length} Sessions, ${newGyms.length} Studios importiert!`);
+    renderStats();
+  } catch(e) {
+    alert('Fehler: Ungültiger Text. Bitte nochmal kopieren.');
+  }
+}
+
+// gymData = { gymId: [{date, w, reps}] } — ein eigenes Chart pro Gym
+function bigChart(gymData, name) {
+  const gyms = Object.keys(gymData).filter(g => gymData[g].length > 0);
+  if (!gyms.length) return '';
+  return gyms.map(g =>
+    singleChart(gymData[g].slice().sort((a,b)=>a.date.localeCompare(b.date)), name, g)
+  ).join('');
+}
+
+function singleChart(data, name, gymId) {
+  const col = gymColor(gymId);
+  const inf = gymInfo(gymId);
+  const W=340, H=194, pL=44, pR=14, pT=30, pB=46;
+  const cW=W-pL-pR, cH=H-pT-pB;
+
+  const weights = data.map(d=>d.w);
+  const minW = Math.min(...weights), maxW = Math.max(...weights);
+  const range = maxW-minW || (minW*0.1) || 1;
+  const yMin = minW - range*0.15, yMax = maxW + range*0.15;
+  const yRange = yMax-yMin;
+
+  const pts = data.map((d,i)=>({
+    x: pL + (data.length>1 ? i/(data.length-1) : 0.5)*cW,
+    y: pT + (1-(d.w-yMin)/yRange)*cH,
+    w: d.w, reps: d.reps, date: d.date
+  }));
+
+  const gridVals = [minW, (minW+maxW)/2, maxW];
+  const grid = gridVals.map(v=>{
+    const y = pT + (1-(v-yMin)/yRange)*cH;
+    return `<line x1="${pL}" y1="${y.toFixed(1)}" x2="${W-pR}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-width="1" stroke-dasharray="3,3"/>
+            <text x="${pL-5}" y="${(y+4).toFixed(1)}" font-size="9" fill="var(--tl)" text-anchor="end">${v}kg</text>`;
+  }).join('');
+
+  const lineStr = pts.map(p=>`${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  const areaStr = `${pts[0].x.toFixed(1)},${pT+cH} ${lineStr} ${pts[pts.length-1].x.toFixed(1)},${pT+cH}`;
+
+  let items = `<polygon points="${areaStr}" fill="${col.fill}" opacity=".35"/>`;
+  if (pts.length>1) items += `<polyline points="${lineStr}" fill="none" stroke="${col.stroke}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+  pts.forEach(p=>{
+    const labelY = p.y > pT+16 ? p.y-10 : p.y+18;
+    const dateX = Math.max(pL+12, Math.min(W-pR-12, p.x));
+    items += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4.5" fill="${col.stroke}"/>
+      <text x="${p.x.toFixed(1)}" y="${labelY.toFixed(1)}" font-size="10" fill="${col.stroke}" text-anchor="middle" font-weight="500">${p.w}kg</text>
+      <text x="${dateX.toFixed(1)}" y="${(pT+cH+14).toFixed(1)}" font-size="9" fill="var(--tl)" text-anchor="middle">${fmtDateShort(p.date)}</text>
+      <text x="${dateX.toFixed(1)}" y="${(pT+cH+26).toFixed(1)}" font-size="9" fill="var(--sd)" text-anchor="middle">${p.reps}×</text>`;
+  });
+
+  const first=data[0], last=data[data.length-1];
+  const diff=(last.w-first.w).toFixed(1);
+  const diffCls=diff>0?'up':diff<0?'down':'';
+  const diffStr=diff>0?`+${diff}kg`:diff<0?`${diff}kg`:'±0';
+
+  return `<div class="chart-card">
+    <div class="chart-prog">
+      <div class="chart-name">${name} <span class="gym-pill ${inf.cls}">${inf.icon} ${inf.label}</span></div>
+      <div class="chart-diff ${diffCls}">${diffStr}</div>
+      <div class="chart-meta">${data.length} Session${data.length!==1?'s':''} · aktuell ${last.w}kg</div>
+    </div>
+    <svg viewBox="0 0 ${W} ${H}" class="chart-svg">
+      ${grid}
+      ${items}
+    </svg>
+    <div style="text-align:center;font-size:10px;color:var(--tl);margin-top:6px">Grüne Zahl = ⌀ Wiederholungen pro Satz</div>
+  </div>`;
+}
+
+// ── KALENDER ──────────────────────────────────────────────────────────────
+let calY = null, calM = null;
+
+function goCal() {
+  if (calY === null) { const now = new Date(); calY = now.getFullYear(); calM = now.getMonth(); }
+  renderCal();
+  show('cal');
+}
+function calShift(d) {
+  calM += d;
+  if (calM < 0) { calM = 11; calY--; }
+  if (calM > 11) { calM = 0; calY++; }
+  renderCal();
+}
+function renderCal() {
+  const cnt = document.getElementById('cal-content');
+  const pad = n => String(n).padStart(2,'0');
+  const byDate = {};
+  (db.sessions||[]).forEach(s => { (byDate[s.date] = byDate[s.date]||[]).push(s); });
+  const monthNames = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+  const offset = (new Date(calY, calM, 1).getDay()+6)%7; // Montag zuerst
+  const daysInMonth = new Date(calY, calM+1, 0).getDate();
+  const t = new Date();
+  const todayStr = `${t.getFullYear()}-${pad(t.getMonth()+1)}-${pad(t.getDate())}`;
+
+  const actByDate = {};
+  (db.activities||[]).forEach(a => { (actByDate[a.date] = actByDate[a.date]||[]).push(a); });
+
+  let cells = ['Mo','Di','Mi','Do','Fr','Sa','So'].map(w=>`<div class="cal-wd">${w}</div>`).join('');
+  for (let i=0;i<offset;i++) cells += '<div class="cal-cell off"></div>';
+  let monthCount = 0, actCount = 0;
+  for (let d=1; d<=daysInMonth; d++) {
+    const ds = `${calY}-${pad(calM+1)}-${pad(d)}`;
+    const list = byDate[ds];
+    const acts = actByDate[ds];
+    const today = ds===todayStr ? ' today' : '';
+    let cls = '', marks = '';
+    if (list && list.length) {
+      monthCount += list.length;
+      cls = ' has bg' + list[list.length-1].day;
+      marks = list.map(x=>x.day).join('');
+    }
+    if (acts && acts.length) {
+      actCount += acts.length;
+      if (!cls) cls = ' has act';
+      marks += acts.slice(0,2).map(a=>a.icon||'✦').join('');
+    }
+    cells += `<div class="cal-cell${cls}${today}" onclick="openDayModal('${ds}')"><span>${d}</span>${marks?`<span class="cal-ltr">${marks}</span>`:''}</div>`;
+  }
+
+  cnt.innerHTML = `
+    <div class="cal-head">
+      <button class="cal-nav" onclick="calShift(-1)">‹</button>
+      <div class="cal-title">${monthNames[calM]} ${calY}</div>
+      <button class="cal-nav" onclick="calShift(1)">›</button>
+    </div>
+    <div class="cal-grid">${cells}</div>
+    <div class="cal-legend">
+      <span><span class="cal-dot" style="background:var(--rl);border:1px solid var(--rose)"></span>A · ${PLANS().A.name}</span>
+      <span><span class="cal-dot" style="background:var(--sl);border:1px solid var(--sage)"></span>B · ${PLANS().B.name}</span>
+      <span><span class="cal-dot" style="background:var(--ll);border:1px solid var(--lav)"></span>C · ${PLANS().C.name}</span>
+      <span><span class="cal-dot" style="background:#2b2418;border:1px solid #5c4a24"></span>✦ Aktivität</span>
+    </div>
+    <div style="text-align:center;margin-top:12px;font-size:12px;color:var(--tl)">${monthCount} Training${monthCount!==1?'s':''}${actCount?` · ${actCount} Aktivität${actCount!==1?'en':''}`:''} im ${monthNames[calM]}</div>`;
+}
+
+// ── TAGES-MODAL (Kalender) ────────────────────────────────────────────────
+let dayModalDate = null;
+let dayActIcon = '✦';
+let editActId = null;
+const ACT_ICONS = ['✦','🧘','🚴','🏃','🏊','🥾','💃','🎾','⚽','🧗','⛷️','🏐','🏸','🏓','🥊','🤸','🛼','⛸️','🏂','🚣','🏄','🚶','🧖','🩰','🥋','⛳','🏇','🛹'];
+
+function openDayModal(ds) {
+  dayModalDate = ds;
+  dayActIcon = '✦';
+  editActId = null;
+  renderDayModal();
+  openModal('modal-day');
+}
+function editActivity(id) {
+  const a = (db.activities||[]).find(x=>x.id===id);
+  if (!a) return;
+  editActId = id;
+  dayActIcon = a.icon || '✦';
+  renderDayModal();
+  const inp = document.getElementById('act-inp');
+  if (inp) { inp.value = a.label; inp.focus(); }
+}
+function cancelActEdit() {
+  editActId = null;
+  dayActIcon = '✦';
+  renderDayModal();
+}
+function saveActEdit() {
+  const a = (db.activities||[]).find(x=>x.id===editActId);
+  const v = (document.getElementById('act-inp')?.value||'').trim();
+  if (!a || !v) return;
+  a.label = v;
+  a.icon = dayActIcon;
+  saveDB();
+  editActId = null;
+  dayActIcon = '✦';
+  renderDayModal();
+  renderCal();
+}
+function selActIcon(icon) {
+  dayActIcon = icon;
+  document.querySelectorAll('.emoji-btn').forEach(b => b.classList.toggle('sel', b.dataset.icon === icon));
+}
+function renderDayModal() {
+  document.getElementById('day-title').textContent = fmtDate(dayModalDate);
+  const sessions = (db.sessions||[]).filter(s=>s.date===dayModalDate);
+  const acts = (db.activities||[]).filter(a=>a.date===dayModalDate);
+
+  let html = '';
+  if (sessions.length) {
+    html += sessions.map(s => {
+      const gi = gymInfo(s.gym);
+      return `<div class="s-card" style="margin-bottom:6px" onclick="closeModal('modal-day');showDetail('${s.id}')">
+        <div class="sbadge bg${s.day}">${s.day}</div>
+        <div class="s-info">
+          <div class="s-name">${PLANS()[s.day].name}<span class="gym-pill ${gi.cls}">${gi.icon} ${gi.label}</span></div>
+          <div class="s-meta">${fmtDur(s.duration)}</div>
+        </div>
+        <span style="color:var(--tl);font-size:18px">›</span>
+      </div>`;
+    }).join('');
+  }
+  if (acts.length) {
+    html += acts.map(a => `<div class="pe-row" style="${a.id===editActId?'border:1.5px solid var(--rose);':''}">
+      <span style="font-size:14px">${a.icon||'✦'}</span>
+      <div class="pe-name">${a.label}</div>
+      <button class="pe-btn" onclick="editActivity('${a.id}')">✎</button>
+      <button class="pe-btn" style="color:#e35555;border-color:#5a2626" onclick="delActivity('${a.id}')">🗑</button>
+    </div>`).join('');
+  }
+  if (!sessions.length && !acts.length) {
+    html += `<p style="font-size:13px;color:var(--tl);margin-bottom:12px;text-align:center">Noch nichts eingetragen.</p>`;
+  }
+
+  // Schnellauswahl: zuletzt benutzte Aktivitäten (mit ihrem Symbol)
+  const seen = new Set();
+  const recent = [];
+  (db.activities||[]).slice().reverse().forEach(a => {
+    if (!seen.has(a.label)) { seen.add(a.label); recent.push(a); }
+  });
+  const chips = recent.length
+    ? `<div class="act-chips">${recent.slice(0,6).map(a=>`<button class="act-chip" onclick="addActivity('${a.label.replace(/'/g,"\\'")}','${a.icon||'✦'}')">${a.icon||'✦'} ${a.label}</button>`).join('')}</div>`
+    : '';
+
+  const editing = !!editActId;
+  html += `<div class="m-label" style="margin-top:14px">${editing?'Aktivität bearbeiten':'Aktivität eintragen'}</div>
+    ${editing?'':chips}
+    ${[ACT_ICONS.slice(0, Math.ceil(ACT_ICONS.length/2)), ACT_ICONS.slice(Math.ceil(ACT_ICONS.length/2))].map(row =>
+      `<div class="emoji-row">${row.map(ic=>`<button class="emoji-btn${ic===dayActIcon?' sel':''}" data-icon="${ic}" onmousedown="event.preventDefault()" onclick="selActIcon('${ic}')">${ic}</button>`).join('')}</div>`
+    ).join('')}
+    <div style="display:flex;gap:8px;align-items:stretch">
+      <input type="text" class="m-inp" id="act-inp" style="flex:1;margin-bottom:0;min-width:0" placeholder="z.B. Yoga, Spinning..." autocomplete="off"
+        onkeydown="if(event.key==='Enter')${editing?'saveActEdit()':'addActivity()'}">
+      <button class="m-save" style="width:auto;padding:0 20px;flex-shrink:0;font-size:17px"
+        onmousedown="event.preventDefault()" onclick="${editing?'saveActEdit()':'addActivity()'}">${editing?'✓':'+'}</button>
+    </div>
+    ${editing?`<button class="m-cancel" onclick="cancelActEdit()">Abbrechen</button>`:''}`;
+
+  document.getElementById('day-body').innerHTML = html;
+}
+function addActivity(label, icon) {
+  const v = (label || document.getElementById('act-inp')?.value || '').trim();
+  if (!v) return;
+  if (!db.activities) db.activities = [];
+  db.activities.push({id:'act-'+Date.now(), date:dayModalDate, label:v, icon: icon || dayActIcon});
+  saveDB();
+  renderDayModal();
+  renderCal();
+}
+function delActivity(id) {
+  db.activities = (db.activities||[]).filter(a=>a.id!==id);
+  if (editActId === id) { editActId = null; dayActIcon = '✦'; }
+  saveDB();
+  renderDayModal();
+  renderCal();
+}
+
+// ── PLAN EDITOR ───────────────────────────────────────────────────────────
+let editPlanDay = 'A';
+
+function openPlanEdit() {
+  editPlanDay = chosenDay || 'A';
+  peOpenIdx = null;
+  renderPlanEdit();
+  openModal('modal-planedit');
+}
+function selPlanEditDay(d) { editPlanDay = d; peOpenIdx = null; renderPlanEdit(); }
+let peOpenIdx = null;
+
+function renderPlanEdit() {
+  document.getElementById('pe-tabs').innerHTML = ['A','B','C'].map(d =>
+    `<button class="pe-tab${d===editPlanDay?' a'+d:''}" onclick="selPlanEditDay('${d}')">Day ${d}</button>`).join('');
+
+  const plan = PLANS()[editPlanDay];
+  const list = planExercises(editPlanDay);
+  const pinned = (db.customPlanExercises||{})[editPlanDay]||[];
+
+  let html = `<div class="m-label">Name des Plans</div>
+    <input type="text" class="m-inp" id="pe-planname" value="${esc(plan.name)}" onchange="renamePlan(this.value)">`;
+
+  html += `<div class="m-label">Übungen (${list.length})</div>`;
+  list.forEach((ex, i) => {
+    const open = peOpenIdx === i;
+    if (ex.section) html += `<div class="slbl">${esc(ex.section)}</div>`;
+    html += `<div class="pe-row" style="flex-wrap:wrap;${open?'border:1.5px solid var(--rose);':''}">
+      <div class="pe-name" onclick="pePick(${i})" style="cursor:pointer">
+        <div>${esc(ex.name)}</div>
+        <div style="font-size:10px;color:var(--tl);margin-top:2px">${ex.s}×${ex.r} · ${ex.w||0}kg · ${ex.rest||60}s</div>
+      </div>
+      <button class="pe-btn" onclick="peMove(${i},-1)" ${i===0?'disabled style="opacity:.3"':''}>↑</button>
+      <button class="pe-btn" onclick="peMove(${i},1)" ${i===list.length-1?'disabled style="opacity:.3"':''}>↓</button>
+      <button class="pe-btn" onclick="pePick(${i})">✎</button>
+      <button class="pe-btn" style="color:#e35555;border-color:#5a2626" onclick="peDel(${i})">🗑</button>
+      ${open ? `<div style="width:100%;border-top:1px solid var(--border);margin-top:8px;padding-top:10px">
+        <div class="m-label">Name</div>
+        <input type="text" class="m-inp" id="pe-f-name" value="${esc(ex.name)}">
+        <div class="m-row">
+          <div><div class="m-label">Sätze</div><input type="number" class="m-inp" id="pe-f-s" value="${ex.s}" min="1"></div>
+          <div><div class="m-label">Wdh</div><input type="number" class="m-inp" id="pe-f-r" value="${ex.r}" min="1"></div>
+          <div><div class="m-label">kg</div><input type="number" class="m-inp" id="pe-f-w" value="${ex.w||0}" step="0.5"></div>
+          <div><div class="m-label">Pause</div><input type="number" class="m-inp" id="pe-f-rest" value="${ex.rest||60}" step="15"></div>
+        </div>
+        <div class="m-label">Überschrift darüber (optional)</div>
+        <input type="text" class="m-inp" id="pe-f-sec" value="${esc(ex.section||'')}" placeholder="z.B. Oberkörper">
+        <button class="m-save" onclick="peSave(${i})">Speichern ✓</button>
+      </div>` : ''}
+    </div>`;
+  });
+
+  html += `<button class="add-ex-btn" style="width:100%;margin-top:8px" onclick="peAdd()">+ Übung zum Plan</button>`;
+
+  if (pinned.length) {
+    html += `<div class="slbl">📌 Per Session hinzugefügt</div>`;
+    pinned.forEach(ex => {
+      html += `<div class="pe-row">
+        <div class="pe-name">${esc(ex.name)}</div>
+        <button class="pe-btn" onclick="peAdoptPinned('${esc(ex.name).replace(/'/g,"\\'")}')">↑ in Plan</button>
+        <button class="pe-btn" style="color:#e35555;border-color:#5a2626" onclick="delPinnedEx('${esc(ex.name).replace(/'/g,"\\'")}')">🗑</button>
+      </div>`;
+    });
+  }
+
+  html += `<button class="m-cancel" style="margin-top:14px" onclick="peReset()">Plan ${editPlanDay} auf Standard zurücksetzen</button>`;
+  document.getElementById('pe-list').innerHTML = html;
+}
+
+function esc(s) { return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function pePick(i) { peOpenIdx = (peOpenIdx===i) ? null : i; renderPlanEdit(); }
+
+function renamePlan(v) {
+  const name = v.trim();
+  if (!name) return;
+  ensureEditablePlans();
+  db.plans[editPlanDay].name = name;
+  saveDB();
+  renderPlanEdit();
+}
+
+function peSave(i) {
+  const list = planExercises(editPlanDay);
+  const ex = list[i];
+  if (!ex) return;
+  const name = document.getElementById('pe-f-name').value.trim();
+  if (!name) return;
+  ex.name = name;
+  ex.s = parseInt(document.getElementById('pe-f-s').value)||3;
+  ex.r = parseInt(document.getElementById('pe-f-r').value)||10;
+  ex.w = parseFloat(document.getElementById('pe-f-w').value)||0;
+  ex.rest = parseInt(document.getElementById('pe-f-rest').value)||60;
+  ex.section = document.getElementById('pe-f-sec').value.trim() || null;
+  setPlanExercises(editPlanDay, list);
+  peOpenIdx = null;
+  renderPlanEdit();
+}
+
+function peMove(i, dir) {
+  const list = planExercises(editPlanDay);
+  const j = i + dir;
+  if (j < 0 || j >= list.length) return;
+  // Überschriften bleiben an ihrer Position im Plan, nicht an der Übung kleben
+  const secs = list.map(e => e.section);
+  [list[i], list[j]] = [list[j], list[i]];
+  list.forEach((e,k) => e.section = secs[k]);
+  setPlanExercises(editPlanDay, list);
+  peOpenIdx = null;
+  renderPlanEdit();
+}
+
+function peDel(i) {
+  const list = planExercises(editPlanDay);
+  if (!list[i]) return;
+  if (!confirm('"'+list[i].name+'" aus Plan '+editPlanDay+' löschen?')) return;
+  // Überschrift an die nachfolgende Übung weiterreichen
+  if (list[i].section && list[i+1] && !list[i+1].section) list[i+1].section = list[i].section;
+  list.splice(i,1);
+  setPlanExercises(editPlanDay, list);
+  peOpenIdx = null;
+  renderPlanEdit();
+}
+
+function peAdd() {
+  const list = planExercises(editPlanDay);
+  list.push({id:'p'+editPlanDay.toLowerCase()+'-'+Date.now(), name:'Neue Übung', s:3, r:10, w:0, rest:60, section:null});
+  setPlanExercises(editPlanDay, list);
+  peOpenIdx = list.length-1;
+  renderPlanEdit();
+  setTimeout(()=>{ const f=document.getElementById('pe-f-name'); if(f){f.focus();f.select();} },80);
+}
+
+function peAdoptPinned(name) {
+  const pin = ((db.customPlanExercises||{})[editPlanDay]||[]).find(e=>e.name===name);
+  if (!pin) return;
+  const list = planExercises(editPlanDay);
+  list.push({id:'p'+editPlanDay.toLowerCase()+'-'+Date.now(), name:pin.name, s:pin.s||3, r:pin.r||10, w:pin.w||0, rest:pin.rest||60, section:null});
+  setPlanExercises(editPlanDay, list);
+  db.customPlanExercises[editPlanDay] = db.customPlanExercises[editPlanDay].filter(e=>e.name!==name);
+  saveDB();
+  renderPlanEdit();
+}
+
+function peReset() {
+  if (!confirm('Plan '+editPlanDay+' wieder auf den Standard zurücksetzen? Deine Änderungen an diesem Plan gehen verloren.')) return;
+  ensureEditablePlans();
+  db.plans[editPlanDay] = JSON.parse(JSON.stringify(DEFAULT_PLANS[editPlanDay]));
+  if (db.hiddenPlanExercises) delete db.hiddenPlanExercises[editPlanDay];
+  saveDB();
+  peOpenIdx = null;
+  renderPlanEdit();
+}
+
+function delPinnedEx(name) {
+  if (!confirm('"'+name+'" entfernen?')) return;
+  db.customPlanExercises[editPlanDay] = (db.customPlanExercises[editPlanDay]||[]).filter(e=>e.name!==name);
+  saveDB();
+  renderPlanEdit();
+}
+
+// ── SETUP ─────────────────────────────────────────────────────────────────
+const DAY_COLOR = {A:'--rd', B:'--sd', C:'--ld'};
+
+function renderDayGrid() {
+  const grid = document.getElementById('day-grid');
+  if (!grid) return;
+  grid.innerHTML = ['A','B','C'].map(d => {
+    const nm = esc(PLANS()[d].name).replace(/ & /,' &<br>');
+    return `<div class="day-card${chosenDay===d?' sel'+d:''}" id="dc-${d}" onclick="selDay('${d}')">
+      <div class="day-ltr" style="color:var(${DAY_COLOR[d]})">${d}</div>
+      <div class="day-nm">${nm}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderAddToPlanDays() {
+  const wrap = document.getElementById('addtoplan-days');
+  if (!wrap) return;
+  const bg = {A:'--rl', B:'--sl', C:'--ll'}, br = {A:'--rose', B:'--sage', C:'--lav'};
+  wrap.innerHTML = ['A','B','C'].map(d =>
+    `<button onclick="confirmAddToPlan('${d}')" style="flex:1;background:var(${bg[d]});border:1.5px solid var(${br[d]});border-radius:5px;padding:14px 6px;font-family:'Barlow',sans-serif;cursor:pointer">
+      <div style="font-family:'Oswald',sans-serif;font-size:22px;color:var(${DAY_COLOR[d]})">${d}</div>
+      <div style="font-size:10px;color:var(${DAY_COLOR[d]});margin-top:3px">${esc(PLANS()[d].name)}</div>
+    </button>`).join('');
+}
+
+function selGym(g) {
+  chosenGym = g;
+  renderGymToggle();
+  updateStartBtn();
+}
+function selDay(d) {
+  chosenDay = d;
+  ['A','B','C'].forEach(x => document.getElementById('dc-'+x).className='day-card'+(x===d?' sel'+x:''));
+  updateStartBtn();
+}
+function updateStartBtn() {
+  document.getElementById('start-btn').className = 'start-btn'+(chosenDay&&chosenGym?' ready':'');
+}
+
+// ── START SESSION ─────────────────────────────────────────────────────────
+function startSession() {
+  if (!chosenDay || !chosenGym) return;
+  const date = document.getElementById('setup-date').value;
+  if (!date) return;
+  const lastData = getLastExData(chosenDay, chosenGym);
+  const hiddenExs = new Set((db.hiddenPlanExercises||{})[chosenDay]||[]);
+  const exercises = [];
+  let pendingSection = null;
+  planExercises(chosenDay).forEach(ex => {
+    if (ex.section) pendingSection = ex.section;
+    if (hiddenExs.has(ex.name)) return;
+    const src = lastData[ex.id] || lastData['n:'+ex.name];
+    const w = (src && src.w) ? src.w : ex.w;
+    const reps = (src && src.r) ? src.r : ex.r;
+    const numSets = (src && src.s) ? src.s : ex.s;
+    exercises.push({
+      id: ex.id,
+      name: ex.name,
+      rest: ex.rest,
+      opt: ex.opt||false,
+      lastW: (src && src.w) ? src.w : undefined,
+      section: pendingSection,
+      sets: Array.from({length:numSets}, ()=>({weight:w, reps:reps, done:false}))
+    });
+    pendingSection = null;
+  });
+  // Add custom plan exercises for this day
+  const customPlanExs = (db.customPlanExercises||{})[chosenDay]||[];
+  customPlanExs.forEach(ce => {
+    if (exercises.find(e=>e.name===ce.name)) return;
+    const src = lastData['n:'+ce.name];
+    const w = (src && src.w) ? src.w : ce.w;
+    const reps = (src && src.r) ? src.r : (ce.r||10);
+    const numSets = (src && src.s) ? src.s : (ce.s||3);
+    exercises.push({id:'cplan-'+ce.name.replace(/[^a-z0-9]/gi,''), name:ce.name, rest:ce.rest||60, opt:false, lastW:(src&&src.w)?src.w:undefined, section:null, sets:Array.from({length:numSets},()=>({weight:w,reps:reps,done:false}))});
+  });
+
+  const lastGoals = (() => {
+    const prev = sessionsByDate().filter(s => s.day === chosenDay);
+    if (!prev.length) return {};
+    const sameGym = prev.filter(s => normGym(s.gym) === normGym(chosenGym));
+    const arr = sameGym.length ? sameGym : prev;
+    const src = arr[arr.length-1];
+    const g = {};
+    src.exercises.forEach(ex => { if (ex.nextGoal) g[ex.name] = ex.nextGoal; });
+    return g;
+  })();
+  exercises.forEach(ex => {
+    ex.lastGoal = lastGoals[ex.name] || null;
+    ex.nextGoal = ex.lastGoal ? {...ex.lastGoal} : null;
+  });
+  session = {id:Date.now().toString(), date, day:chosenDay, gym:chosenGym, startTime:Date.now(), exercises};
+  renderActive();
+  show('active');
+  startSessTimer();
+}
+
+function normGym(g) { return (g==='bs'||g==='bs1') ? 'bs1' : (g||'evo'); }
+
+// Letzte Werte (Gewicht, Wdh, Satzzahl) pro Übung, in 3 Stufen:
+// 1. gleicher Tag + gleiches Gym  2. gleiches Gym, anderer Tag  3. irgendein Gym
+// Spätere Stufen füllen nur Übungen, die vorher nicht gefunden wurden.
+function getLastExData(day, gym) {
+  const all = sessionsByDate();
+  const sameGym = all.filter(s => normGym(s.gym) === normGym(gym));
+  const tiers = [sameGym.filter(s => s.day === day), sameGym, all];
+  const out = {};
+  tiers.forEach(tier => {
+    for (let i = tier.length-1; i >= 0; i--) {
+      tier[i].exercises.forEach(ex => {
+        const used = ex.sets.filter(x => x.weight > 0 || x.reps > 0);
+        if (!used.length) return;
+        const s0 = ex.sets.find(x=>x.done&&x.weight>0) || ex.sets.find(x=>x.weight>0) || used[0];
+        const entry = {w: s0.weight||0, r: s0.reps||0, s: used.length};
+        if (out[ex.id] === undefined) out[ex.id] = entry;
+        if (out['n:'+ex.name] === undefined) out['n:'+ex.name] = entry;
+      });
+    }
+  });
+  return out;
+}
+
+// ── RENDER ACTIVE ─────────────────────────────────────────────────────────
+function renderActive() {
+  document.getElementById('act-eye').textContent = 'Day '+session.day+' · '+session.date;
+  document.getElementById('act-title').textContent = PLANS()[session.day].name;
+  const _gi = gymInfo(session.gym);
+  const gymLabel = `<span class="gym-pill ${_gi.cls}" style="font-size:11px;padding:3px 9px">${_gi.icon} ${_gi.label}</span>`;
+  document.getElementById('act-gym-badge').innerHTML = gymLabel;
+  const nc = {A:'r',B:'s',C:'l'}[session.day];
+  let html='';
+  session.exercises.forEach((ex, idx)=>{
+    if(ex.section) html += `<div class="slbl">${ex.section}</div>`;
+    html += renderExCard(idx, nc);
+  });
+  html += `<div class="add-ex-row"><button class="add-ex-btn" onclick="openAddEx()">+ Übung hinzufügen</button></div>`;
+  document.getElementById('act-exs').innerHTML = html;
+}
+
+function renderExCard(idx, nc) {
+  const ex = session.exercises[idx];
+  const numCls = 'n'+nc;
+  const hint = ex.lastW !== undefined
+    ? `<div class="last-hint">↑ Letzte Session: <span>${ex.lastW}kg</span></div>` : '';
+  const rows = ex.sets.map((s,si)=>`
+    <div class="set-row" id="sr-${idx}-${si}">
+      <span class="snr">${si+1}</span>
+      <input class="sinp${s.done?' faded':''}" type="number" step="0.5"
+        value="${s.weight||''}" placeholder="0" onchange="updSet(${idx},${si},'weight',this.value)">
+      <span class="sx">kg ×</span>
+      <input class="sinp${s.done?' faded':''}" type="number"
+        value="${s.reps||''}" placeholder="Wdh" onchange="updSet(${idx},${si},'reps',this.value)">
+      <button class="done-btn${s.done?' done':''}" onclick="togDone(${idx},${si})">${s.done?'✓':'○'}</button>
+      <button class="del-set" onclick="delSet(${idx},${si})" title="Satz löschen">✕</button>
+    </div>`).join('');
+  const kg = ex.nextGoal?.kg || null;
+  const rp = ex.nextGoal?.reps || null;
+  const lastGoalHint = (!kg && !rp && ex.lastGoal) ? (() => {
+    const parts = [];
+    if(ex.lastGoal.kg==='up') parts.push('↑ kg');
+    if(ex.lastGoal.kg==='down') parts.push('↓ kg');
+    if(ex.lastGoal.kg==='same') parts.push('= kg');
+    if(ex.lastGoal.reps==='up') parts.push('↑ Wdh');
+    if(ex.lastGoal.reps==='down') parts.push('↓ Wdh');
+    if(ex.lastGoal.reps==='same') parts.push('= Wdh');
+    return parts.length ? `<div style="padding:4px 13px 0;font-size:10px;color:var(--sd)">Letztes Ziel: ${parts.join(' · ')}</div>` : '';
+  })() : '';
+  const goalHtml = `<div class="goal-row">
+    <span style="font-size:10px;color:var(--tl);flex-shrink:0">Nächstes Mal:</span>
+    <button class="goal-btn${kg==='up'?' gon':''}" data-field="kg" data-val="up" onclick="setGoal(${idx},'kg','up')">↑ kg</button>
+    <button class="goal-btn${kg==='same'?' gon':''}" data-field="kg" data-val="same" onclick="setGoal(${idx},'kg','same')">=</button>
+    <button class="goal-btn${kg==='down'?' gon':''}" data-field="kg" data-val="down" onclick="setGoal(${idx},'kg','down')">↓ kg</button>
+    <span style="color:var(--border)">|</span>
+    <button class="goal-btn${rp==='up'?' gon':''}" data-field="reps" data-val="up" onclick="setGoal(${idx},'reps','up')">↑ Wdh</button>
+    <button class="goal-btn${rp==='same'?' gon':''}" data-field="reps" data-val="same" onclick="setGoal(${idx},'reps','same')">=</button>
+    <button class="goal-btn${rp==='down'?' gon':''}" data-field="reps" data-val="down" onclick="setGoal(${idx},'reps','down')">↓ Wdh</button>
+  </div>`;
+  const cueList = CUES[ex.name];
+  const cueHtml = cueList ? `<div class="cue-section">
+    <button class="cue-toggle" onclick="togCues(${idx})">💡 Tipps</button>
+    <div id="cues-${idx}" style="display:none">
+      <ul class="cue-list">${cueList.map(c=>`<li>${c}</li>`).join('')}</ul>
+    </div>
+  </div>` : '';
+  return `<div class="exc" id="ec-${idx}">
+    <div class="exc-hdr">
+      <div class="enum ${numCls}">${idx+1}</div>
+      <div class="ename" id="en-${idx}">${ex.name}</div>
+      <div class="exc-btns">
+        <button class="ic-btn" onclick="editRestInline(${idx})" title="Pause" style="font-size:10px;width:auto;padding:0 6px;">${ex.rest||60}s</button>
+        ${ex.id&&ex.id.startsWith('custom-') ? `<button class="ic-btn" onclick="openAddToPlan(${idx})" title="Zu Plan hinzufügen" style="font-size:12px">📌</button>` : ''}
+        <button class="ic-btn" onclick="openReplace(${idx})" title="Ersetzen">✎</button>
+        <button class="ic-btn del" onclick="delEx(${idx})" title="Löschen">🗑</button>
+      </div>
+    </div>
+    ${hint}
+    <div class="exc-sets">${rows}<button class="add-set-btn" onclick="addSet(${idx})">+ Satz</button></div>
+    ${lastGoalHint}
+    ${goalHtml}
+    ${cueHtml}
+  </div>`;
+}
+
+let addToPlanIdx = null;
+function openAddToPlan(idx) {
+  addToPlanIdx = idx;
+  const ex = session.exercises[idx];
+  document.getElementById('addtoplan-title').textContent = '"'+ex.name+'" zu Plan';
+  renderAddToPlanDays();
+  openModal('modal-addtoplan');
+}
+function confirmAddToPlan(day) {
+  const ex = session.exercises[addToPlanIdx];
+  if (!db.customPlanExercises) db.customPlanExercises = {};
+  if (!db.customPlanExercises[day]) db.customPlanExercises[day] = [];
+  // Check if already in default plan or custom plan
+  const inDefault = PLANS()[day].sections.some(sec=>sec.exs.some(e=>e.name===ex.name));
+  const inCustom = db.customPlanExercises[day].find(e=>e.name===ex.name);
+  if (inDefault || inCustom) {
+    alert('"'+ex.name+'" ist schon in Plan '+day+'.');
+  } else {
+    const lastSet = ex.sets[ex.sets.length-1]||{weight:0,reps:10};
+    db.customPlanExercises[day].push({name:ex.name, s:ex.sets.length, r:lastSet.reps, w:lastSet.weight||0, rest:ex.rest||60});
+    saveDB();
+    alert('✓ "'+ex.name+'" dauerhaft zu Plan '+day+' hinzugefügt!');
+  }
+  closeModal('modal-addtoplan');
+}
+
+function togCues(idx) {
+  const el = document.getElementById('cues-'+idx);
+  el.style.display = el.style.display==='none' ? 'block' : 'none';
+}
+
+function updSet(ei,si,f,v) {
+  session.exercises[ei].sets[si][f] = f==='reps' ? parseInt(v)||0 : parseFloat(v)||0;
+  saveActive();
+}
+function togDone(ei,si) {
+  const set=session.exercises[ei].sets[si];
+  set.done=!set.done;
+  const row=document.getElementById(`sr-${ei}-${si}`);
+  const btn=row.querySelector('.done-btn');
+  btn.classList.toggle('done',set.done);
+  btn.textContent=set.done?'✓':'○';
+  row.querySelectorAll('.sinp').forEach(i=>i.classList.toggle('faded',set.done));
+  saveActive();
+  if(set.done) startPause(session.exercises[ei].rest||60);
+}
+function delSet(ei,si) {
+  if(session.exercises[ei].sets.length<=1) return;
+  session.exercises[ei].sets.splice(si,1);
+  saveActive(); reRenderEx(ei);
+}
+function addSet(ei) {
+  const ex=session.exercises[ei];
+  const last=ex.sets[ex.sets.length-1];
+  ex.sets.push({weight:last?.weight||0,reps:last?.reps||10,done:false});
+  saveActive(); reRenderEx(ei);
+}
+function delEx(ei) {
+  if(!confirm('Übung entfernen?')) return;
+  session.exercises.splice(ei,1);
+  saveActive(); renderActive();
+}
+function reRenderEx(ei) {
+  const nc={A:'r',B:'s',C:'l'}[session.day];
+  const el=document.getElementById(`ec-${ei}`);
+  if(el) el.outerHTML=renderExCard(ei,nc);
+}
+
+function editRestInline(ei) {
+  const cur = session.exercises[ei].rest || 60;
+  const v = prompt('Pause in Sekunden:', cur);
+  if (v === null) return;
+  const n = parseInt(v);
+  if (isNaN(n) || n < 0) return;
+  session.exercises[ei].rest = n;
+  saveActive();
+  reRenderEx(ei);
+}
+
+function setGoal(ei, field, val) {
+  if (!session.exercises[ei].nextGoal) session.exercises[ei].nextGoal = {};
+  const cur = session.exercises[ei].nextGoal[field];
+  session.exercises[ei].nextGoal[field] = cur === val ? null : val;
+  saveActive();
+  const card = document.getElementById('ec-'+ei);
+  if (!card) return;
+  card.querySelectorAll('.goal-btn[data-field]').forEach(btn => {
+    btn.classList.toggle('gon', session.exercises[ei].nextGoal[btn.dataset.field] === btn.dataset.val);
+  });
+}
+
+// REPLACE
+function openReplace(idx) {
+  replaceIdx=idx;
+  document.getElementById('rep-inp').value=session.exercises[idx].name;
+  openModal('modal-replace');
+  setTimeout(()=>document.getElementById('rep-inp').focus(),100);
+}
+function saveReplace() {
+  const v=document.getElementById('rep-inp').value.trim();
+  if(!v) return;
+  session.exercises[replaceIdx].name=v;
+  saveActive();
+  const el=document.getElementById(`en-${replaceIdx}`);
+  if(el) el.textContent=v;
+  closeModal('modal-replace');
+}
+
+// ADD EXERCISE
+function getAllExerciseGroups() {
+  const planMap = {};
+  Object.entries(PLANS).forEach(([day, plan]) => {
+    plan.sections.forEach(sec => {
+      sec.exs.forEach(ex => {
+        if (!planMap[ex.name]) planMap[ex.name] = {id: ex.id, s: ex.s, r: ex.r, w: ex.w, rest: ex.rest};
+      });
+    });
+  });
+  (db.customExercises||[]).forEach(ex => {
+    if (!planMap[ex.name]) planMap[ex.name] = {id: ex.id, s: ex.s||3, r: ex.r||10, w: ex.w||0, rest: ex.rest||60};
+  });
+
+  const history = {};
+  sessionsByDate().forEach(s => {
+    const gymKey = normGym(s.gym);
+    s.exercises.forEach(ex => {
+      const valid = ex.sets.filter(x => x.weight > 0 && x.reps > 0);
+      if (!valid.length) return;
+      const maxW = Math.max(...valid.map(x => x.weight));
+      const avgR = Math.round(valid.reduce((a,x) => a+x.reps, 0) / valid.length);
+      if (!history[ex.name]) history[ex.name] = {};
+      history[ex.name][gymKey] = {w: maxW, r: avgR, s: valid.length, rest: ex.rest||60};
+    });
+  });
+
+  const allNames = new Set([...Object.keys(planMap), ...Object.keys(history)]);
+  return [...allNames].sort().map(name => {
+    const plan = planMap[name];
+    const variants = [];
+    if (plan) variants.push({gym: null, s: plan.s, r: plan.r, w: plan.w, rest: plan.rest, source: 'plan'});
+    if (history[name]) {
+      Object.entries(history[name]).forEach(([gymId, data]) => {
+        // For plan exercises, keep the plan's set count — only weight/reps come from history
+        const sets = plan ? plan.s : data.s;
+        variants.push({gym: gymId, s: sets, r: data.r, w: data.w, rest: data.rest, source: 'history'});
+      });
+    }
+    return {name, variants};
+  });
+}
+
+function exGroupsCached() {
+  if (!_exGroups) _exGroups = getAllExerciseGroups();
+  return _exGroups;
+}
+
+function openAddEx() {
+  exLibExpanded.clear();
+  const inp = document.getElementById('exlib-search');
+  if (inp) inp.value = '';
+  openModal('modal-exlib');
+  renderExLib('');
+  setTimeout(() => { if (inp) inp.focus(); }, 100);
+}
+function openNewEx() {
+  document.getElementById('addex-name').value='';
+  openModal('modal-addex');
+  setTimeout(()=>document.getElementById('addex-name').focus(),100);
+}
+function renderExLib(query) {
+  const groups = exGroupsCached();
+  const q = (query||'').toLowerCase().trim();
+  const filtered = q ? groups.filter(g => g.name.toLowerCase().includes(q)) : groups;
+  const list = document.getElementById('exlib-list');
+  if (!list) return;
+  if (!filtered.length) {
+    list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--tl);font-size:13px">Keine Übungen gefunden</div>';
+    return;
+  }
+  list.innerHTML = filtered.map(group => {
+    const isExp = exLibExpanded.has(group.name);
+    const gymCount = group.variants.filter(v => v.gym).length;
+    const safeName = group.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+
+    let variantsHtml = '';
+    if (isExp) {
+      variantsHtml = '<div style="padding:0 8px 8px;display:flex;flex-direction:column;gap:4px">' +
+        group.variants.map(v => {
+          let pill;
+          if (v.gym) {
+            const inf = gymInfo(v.gym);
+            pill = `<span class="gym-pill ${inf.cls}" style="margin-left:0">${inf.icon} ${inf.label}</span>`;
+          } else {
+            pill = `<span style="font-size:9px;padding:2px 6px;border-radius:5px;background:var(--cream);color:var(--tl);font-weight:600;letter-spacing:.3px">Plan</span>`;
+          }
+          const meta = `${v.s}×${v.r}${v.w ? ' · '+v.w+'kg' : ''}`;
+          return `<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 11px;background:var(--cream);border-radius:4px;cursor:pointer;gap:8px" onclick="addFromLibrary(null,'${safeName}',${v.s},${v.r},${v.w||0},${v.rest||60})">
+            <div style="display:flex;align-items:center;gap:7px">${pill}<span style="font-size:12px;color:var(--tm)">${meta}</span></div>
+            <span style="font-size:16px;color:var(--rd);font-weight:300">+</span>
+          </div>`;
+        }).join('') + '</div>';
+    }
+
+    return `<div class="det-ex" style="margin-bottom:6px;padding:0;overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 13px;cursor:pointer;gap:8px" onclick="toggleExLib('${safeName}')">
+        <div style="font-size:13px;font-weight:500;flex:1">${group.name}</div>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+          ${gymCount ? `<span style="font-size:10px;color:var(--sd)">📊 ${gymCount}</span>` : ''}
+          <span style="color:var(--tl);font-size:18px;line-height:1">${isExp ? '⌄' : '›'}</span>
+        </div>
+      </div>
+      ${variantsHtml}
+    </div>`;
+  }).join('');
+}
+
+function toggleExLib(name) {
+  if (exLibExpanded.has(name)) exLibExpanded.delete(name);
+  else { exLibExpanded.clear(); exLibExpanded.add(name); }
+  renderExLib(document.getElementById('exlib-search')?.value||'');
+}
+function getLastGoalForExercise(name) {
+  const sessions = sessionsByDate();
+  for (let i = sessions.length - 1; i >= 0; i--) {
+    const ex = sessions[i].exercises.find(e => e.name === name && e.nextGoal);
+    if (ex) return ex.nextGoal;
+  }
+  return null;
+}
+function addFromLibrary(id, name, s, r, w, rest) {
+  const lastGoal = getLastGoalForExercise(name);
+  const newEx = {
+    id: 'custom-'+Date.now(),
+    name,
+    rest: rest||60,
+    opt: false,
+    lastGoal,
+    nextGoal: lastGoal ? {...lastGoal} : null,
+    sets: Array.from({length:s||3}, ()=>({weight:w||0, reps:r||10, done:false}))
+  };
+  if(session) {
+    session.exercises.push(newEx);
+    saveActive();
+    closeModal('modal-exlib');
+    renderActive();
+  } else if(editSessionId) {
+    const sess=(db.sessions||[]).find(x=>x.id===editSessionId);
+    if(sess){ sess.exercises.push(newEx); saveDB(); }
+    closeModal('modal-exlib');
+    renderDetail();
+  }
+}
+function onAddExName(val) {
+  const dl = document.getElementById('exnames-dl');
+  if (dl) {
+    const groups = exGroupsCached();
+    const q = val.toLowerCase();
+    dl.innerHTML = groups
+      .filter(g => g.name.toLowerCase().includes(q))
+      .map(g => `<option value="${g.name.replace(/"/g,'&quot;')}">`)
+      .join('');
+  }
+  autoFillAddEx(val);
+}
+
+function autoFillAddEx(name) {
+  const groups = exGroupsCached();
+  const match = groups.find(g => g.name.toLowerCase() === name.toLowerCase());
+  if (!match) return;
+  const src = match.variants.find(v => v.source==='history') || match.variants[0];
+  if (!src) return;
+  document.getElementById('addex-sets').value = src.s;
+  document.getElementById('addex-reps').value = src.r;
+  document.getElementById('addex-weight').value = src.w;
+  document.getElementById('addex-rest').value = src.rest;
+}
+
+function saveAddEx() {
+  const name=document.getElementById('addex-name').value.trim();
+  if(!name) return;
+  const s=parseInt(document.getElementById('addex-sets').value)||3;
+  const r=parseInt(document.getElementById('addex-reps').value)||10;
+  const w=parseFloat(document.getElementById('addex-weight').value)||0;
+  const rest=parseInt(document.getElementById('addex-rest').value)||60;
+  const newEx={id:'custom-'+Date.now(),name,rest,opt:false,sets:Array.from({length:s},()=>({weight:w,reps:r,done:false}))};
+  if(session) {
+    session.exercises.push(newEx);
+    saveActive();
+    closeModal('modal-addex');
+    closeModal('modal-exlib');
+    renderActive();
+  } else if(editSessionId) {
+    const sess=(db.sessions||[]).find(x=>x.id===editSessionId);
+    if(sess){ sess.exercises.push(newEx); saveDB(); }
+    closeModal('modal-addex');
+    closeModal('modal-exlib');
+    renderDetail();
+  }
+  if(!db.customExercises) db.customExercises = [];
+  const existIdx = db.customExercises.findIndex(x => x.name.toLowerCase() === name.toLowerCase());
+  if (existIdx >= 0) {
+    db.customExercises[existIdx] = {id: db.customExercises[existIdx].id, name, s, r, w, rest, gym: session?.gym || db.customExercises[existIdx].gym || 'any'};
+  } else {
+    db.customExercises.push({id:'lib-'+Date.now(), name, s, r, w, rest, gym: session?.gym || 'any'});
+  }
+  saveDB();
+}
+
+// SESSION TIMER
+function startSessTimer() {
+  clearInterval(sessIv);
+  sessIv = setInterval(() => {
+    if (!session) { clearInterval(sessIv); sessIv = null; return; }
+    const el = document.getElementById('sess-timer');
+    if (el) el.textContent = fmtTime(Math.floor((Date.now() - session.startTime) / 1000));
+  }, 1000);
+}
+
+// PAUSE TIMER
+function startPause(sec) {
+  clearInterval(pauseIv);
+  pauseTotal = sec;
+  pauseLeft = sec;
+  if (session) {
+    session.pauseEndTime = Date.now() + sec * 1000;
+    session.pauseTotal = sec;
+    saveActive();
+  }
+  updPauseUI();
+  document.getElementById('pause-ov').classList.add('on');
+  pauseIv = setInterval(tickPause, 500);
+}
+function tickPause() {
+  if (session && session.pauseEndTime) {
+    pauseLeft = Math.max(0, Math.round((session.pauseEndTime - Date.now()) / 1000));
+    pauseTotal = session.pauseTotal || pauseTotal;
+  } else {
+    pauseLeft = Math.max(0, pauseLeft - 1);
+  }
+  if (pauseLeft <= 0) {
+    skipPause();
+    playBeep();
+    if (navigator.vibrate) navigator.vibrate([200,100,200]);
+  } else {
+    updPauseUI();
+  }
+}
+function updPauseUI() {
+  document.getElementById('p-count').textContent = pauseLeft;
+  document.getElementById('p-bar').style.width = (pauseTotal > 0 ? pauseLeft/pauseTotal*100 : 0)+'%';
+}
+function skipPause() {
+  clearInterval(pauseIv);
+  document.getElementById('pause-ov').classList.remove('on');
+  if (session) { session.pauseEndTime = null; session.pauseTotal = null; saveActive(); }
+}
+function addPause() {
+  pauseLeft += 30;
+  pauseTotal += 30;
+  if (session && session.pauseEndTime) {
+    session.pauseEndTime += 30000;
+    session.pauseTotal = pauseTotal;
+    saveActive();
+  }
+  updPauseUI();
+}
+
+// FINISH
+function confirmFinish() {
+  if (!session) return;
+  clearInterval(sessIv); sessIv = null;
+  skipPause();
+  session.duration = Math.floor((Date.now() - session.startTime) / 1000);
+  if (!db.sessions) db.sessions = [];
+  db.sessions.push({
+    id: session.id,
+    date: session.date,
+    day: session.day,
+    gym: session.gym,
+    duration: session.duration,
+    exercises: JSON.parse(JSON.stringify(session.exercises))
+  });
+  saveDB();
+  localStorage.removeItem('ironlog_active');
+  session = null;
+  show('home');
+  renderHome();
+}
+
+// ── DETAIL / EDIT ─────────────────────────────────────────────────────────
+function showDetail(id) {
+  editSessionId=id;
+  editMode=false;
+  renderDetail();
+  show('detail');
+}
+
+function renderDetail() {
+  const s=(db.sessions||[]).find(x=>x.id===editSessionId);
+  if(!s) return;
+  const _dgi = gymInfo(s.gym);
+  document.getElementById('det-eye').textContent='Day '+s.day+(s.gym?' · '+_dgi.label:'');
+  document.getElementById('det-title').textContent=PLANS()[s.day].name;
+  document.getElementById('det-sub').textContent=fmtDate(s.date)+' · '+fmtDur(s.duration);
+  document.getElementById('edit-toggle-btn').textContent=editMode?'✓ Fertig':'✎';
+
+  const gymTag=`<span class="gym-pill ${_dgi.cls}">${_dgi.icon} ${_dgi.label}</span>`;
+
+  let exHtml='';
+  if(editMode) {
+    const customGymBtns = (db.customGyms||[]).map(cg=>
+      `<button class="gym-btn${s.gym===cg.id?' g-bs1':''}" onclick="editSessionGym('${s.id}','${cg.id}')">📍 ${cg.label}</button>`
+    ).join('');
+    const gymSel = `<div style="margin-bottom:14px">
+  <div class="setup-lbl">Gym ändern</div>
+  <div class="gym-toggle">
+    <button class="gym-btn${s.gym==='evo'?' g-evo':''}" onclick="editSessionGym('${s.id}','evo')">🏋️ Gym</button>
+    ${customGymBtns}
+  </div>
+</div>`;
+    exHtml=gymSel+s.exercises.map((ex,ei)=>`
+      <div class="det-ex">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <div class="det-exname" style="flex:1;margin-bottom:0">${ex.name}</div>
+          <button class="ic-btn del" onclick="editDelEx('${s.id}',${ei})" title="Übung löschen">🗑</button>
+        </div>
+        ${ex.sets.map((set,si)=>`
+          <div class="edit-set-row">
+            <span class="snr" style="font-size:11px;color:var(--tl);width:16px">${si+1}</span>
+            <input class="edit-inp" type="number" step="0.5" value="${set.weight||''}" placeholder="kg"
+              onchange="editSet('${s.id}',${ei},${si},'weight',this.value)">
+            <span class="sx">×</span>
+            <input class="edit-inp" type="number" value="${set.reps||''}" placeholder="reps"
+              onchange="editSet('${s.id}',${ei},${si},'reps',this.value)">
+            <button class="done-btn${set.done?' done':''}" onclick="editToggleDone('${s.id}',${ei},${si},this)">${set.done?'✓':'○'}</button>
+            <button class="del-set" onclick="editDelSet('${s.id}',${ei},${si})" title="Satz löschen">✕</button>
+          </div>`).join('')}
+        <button class="add-set-btn" style="margin-top:4px" onclick="editAddSet('${s.id}',${ei})">+ Satz</button>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+          <span style="font-size:11px;color:var(--tl)">⏱ Pause:</span>
+          <input class="edit-inp" type="number" step="15" min="0" value="${ex.rest||60}" style="width:60px"
+            onchange="editExRest('${s.id}',${ei},this.value)">
+          <span style="font-size:11px;color:var(--tl)">Sek</span>
+        </div>
+      </div>`).join('');
+    exHtml+=`<button class="add-ex-btn" style="width:100%;margin-top:4px" onclick="openAddEx()">+ Übung hinzufügen</button>`;
+    exHtml+=`<button class="fin-btn" style="width:100%;padding:11px;margin-top:10px" onclick="openDurEdit()">⏱ Dauer ändern (${fmtDur(s.duration)})</button>`;
+    exHtml+=`<button class="del-session-btn" onclick="deleteSession('${s.id}')">🗑 Session löschen</button>`;
+  } else {
+    exHtml=s.exercises.map(ex=>{
+      const chips=ex.sets.map(set=>`<div class="det-chip${set.done?' done':''}">${set.weight?set.weight+'kg':'BW'} × ${set.reps}</div>`).join('');
+      return `<div class="det-ex"><div class="det-exname">${ex.name}</div><div class="det-sets">${chips||'<span style="font-size:11px;color:var(--tl)">Keine Daten</span>'}</div></div>`;
+    }).join('');
+    exHtml+=`<button class="del-session-btn" onclick="deleteSession('${s.id}')">🗑 Session löschen</button>`;
+  }
+
+  document.getElementById('det-content').innerHTML=`
+    <div class="detail-meta">
+      <div class="dmeta-chip">📅 ${fmtDate(s.date)}</div>
+      <div class="dmeta-chip">⏱ ${fmtDur(s.duration)}</div>
+      <div class="dmeta-chip">${gymTag}</div>
+    </div>${exHtml}`;
+}
+
+function toggleEditMode() { editMode=!editMode; renderDetail(); }
+
+function editSet(sid,ei,si,field,val) {
+  const s=(db.sessions||[]).find(x=>x.id===sid);
+  if(!s) return;
+  s.exercises[ei].sets[si][field]=field==='reps'?parseInt(val)||0:parseFloat(val)||0;
+  saveDB();
+}
+function editToggleDone(sid,ei,si,btn) {
+  const s=(db.sessions||[]).find(x=>x.id===sid);
+  if(!s) return;
+  s.exercises[ei].sets[si].done=!s.exercises[ei].sets[si].done;
+  btn.classList.toggle('done',s.exercises[ei].sets[si].done);
+  btn.textContent=s.exercises[ei].sets[si].done?'✓':'○';
+  saveDB();
+}
+
+function editDelEx(sid,ei) {
+  if(!confirm('Übung löschen?')) return;
+  const s=(db.sessions||[]).find(x=>x.id===sid);
+  if(!s) return;
+  s.exercises.splice(ei,1); saveDB(); renderDetail();
+}
+function editDelSet(sid,ei,si) {
+  const s=(db.sessions||[]).find(x=>x.id===sid);
+  if(!s||s.exercises[ei].sets.length<=1) return;
+  s.exercises[ei].sets.splice(si,1); saveDB(); renderDetail();
+}
+function editAddSet(sid,ei) {
+  const s=(db.sessions||[]).find(x=>x.id===sid);
+  if(!s) return;
+  const ex=s.exercises[ei];
+  const last=ex.sets[ex.sets.length-1];
+  ex.sets.push({weight:last?.weight||0,reps:last?.reps||10,done:false});
+  saveDB(); renderDetail();
+}
+function openDurEdit() {
+  const s=(db.sessions||[]).find(x=>x.id===editSessionId);
+  if(!s) return;
+  document.getElementById('dur-inp').value=Math.round((s.duration||0)/60);
+  openModal('modal-dur');
+}
+function saveDuration() {
+  const s=(db.sessions||[]).find(x=>x.id===editSessionId);
+  if(!s) return;
+  s.duration=parseInt(document.getElementById('dur-inp').value)*60;
+  saveDB();
+  closeModal('modal-dur');
+  renderDetail();
+}
+
+function deleteSession(id) {
+  if(!confirm('Session wirklich löschen?')) return;
+  db.sessions=(db.sessions||[]).filter(s=>s.id!==id);
+  saveDB();
+  goHome();
+}
+
+function editExRest(sid, ei, val) {
+  const s = (db.sessions||[]).find(x=>x.id===sid);
+  if(!s) return;
+  s.exercises[ei].rest = parseInt(val)||60;
+  saveDB();
+}
+
+function editSessionGym(sid, g) {
+  const s=(db.sessions||[]).find(x=>x.id===sid);
+  if(!s) return;
+  s.gym=g;
+  saveDB();
+  renderDetail();
+}
+
+// ── MODALS ────────────────────────────────────────────────────────────────
+function openModal(id) { document.getElementById(id).classList.add('on'); document.body.style.overflow='hidden'; }
+function closeModal(id) {
+  document.getElementById(id).classList.remove('on');
+  document.body.style.overflow='';
+  if (id==='modal-planedit') renderDayGrid();
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────────────
+function fmtTime(sec) { return String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0'); }
+function fmtDur(sec) { return sec?Math.max(1,Math.round(sec/60))+' min':'–'; }
+function fmtDate(d) { if(!d) return ''; const[y,m,day]=d.split('-'); return day+'.'+m+'.'+y; }
+function fmtDateShort(d) { if(!d) return ''; const[,m,day]=d.split('-'); return day+'.'+m; }
+
+// ── GYM TOGGLE RENDER ─────────────────────────────────────────────────────
+function renderGymToggle() {
+  const wrap = document.getElementById('gym-toggle-wrap');
+  if (!wrap) return;
+  const g = chosenGym;
+  const customs = db.customGyms || [];
+  let html = '<div class="gym-toggle">';
+  html += `<button class="gym-btn${g==='evo'?' g-evo':''}" id="gb-evo" onclick="selGym('evo')">🏋️ Gym</button>`;
+  customs.forEach(cg => {
+    html += `<span style="display:flex;align-items:center;flex-shrink:0">
+      <button class="gym-btn${g===cg.id?' g-bs1':''}" id="gb-${cg.id}" onclick="selGym('${cg.id}')">📍 ${cg.label}</button>
+      <button onclick="editCustomGym('${cg.id}')" style="padding:0 4px;border:none;background:none;cursor:pointer;font-size:11px;color:var(--tl);flex-shrink:0" title="Bearbeiten">✎</button>
+    </span>`;
+  });
+  html += '</div>';
+  wrap.innerHTML = html;
+}
+
+// ── CUSTOM GYM MANAGEMENT ─────────────────────────────────────────────────
+let editingGymId = null;
+
+function openAddGym() {
+  editingGymId = null;
+  document.getElementById('addgym-name').value = '';
+  document.getElementById('addgym-title').textContent = 'Gym hinzufügen';
+  document.getElementById('addgym-save').textContent = 'Hinzufügen ✓';
+  document.getElementById('addgym-delete').style.display = 'none';
+  openModal('modal-addgym');
+  setTimeout(() => document.getElementById('addgym-name').focus(), 100);
+}
+
+function editCustomGym(id) {
+  const cg = (db.customGyms||[]).find(x=>x.id===id);
+  if (!cg) return;
+  editingGymId = id;
+  document.getElementById('addgym-name').value = cg.label;
+  document.getElementById('addgym-title').textContent = 'Gym bearbeiten';
+  document.getElementById('addgym-save').textContent = 'Speichern ✓';
+  document.getElementById('addgym-delete').style.display = 'block';
+  openModal('modal-addgym');
+  setTimeout(() => document.getElementById('addgym-name').focus(), 100);
+}
+
+function saveAddGym() {
+  const label = document.getElementById('addgym-name').value.trim();
+  if (!label) return;
+  if (!db.customGyms) db.customGyms = [];
+  if (editingGymId) {
+    const cg = db.customGyms.find(x=>x.id===editingGymId);
+    if (cg) cg.label = label;
+    saveDB();
+    closeModal('modal-addgym');
+    renderGymToggle();
+  } else {
+    const id = 'cg-' + Date.now();
+    db.customGyms.push({id, label});
+    saveDB();
+    closeModal('modal-addgym');
+    renderGymToggle();
+    selGym(id);
+  }
+}
+
+function deleteCustomGym(id) {
+  const cg = (db.customGyms||[]).find(x=>x.id===id);
+  if(!confirm('Gym "'+(cg?cg.label:'')+'" wirklich löschen?')) return;
+  db.customGyms = (db.customGyms||[]).filter(x=>x.id!==id);
+  saveDB();
+  closeModal('modal-addgym');
+  if (chosenGym === id) { chosenGym = null; updateStartBtn(); }
+  renderGymToggle();
+}
+
+// ── CLOUD SYNC ────────────────────────────────────────────────────────────
+// Vereint zwei Datenstände ohne Verluste (Sessions nach id, Rest nach Name/id)
+function mergeDb(a, b) {
+  a = a||{}; b = b||{};
+  const seen = new Set((a.sessions||[]).map(s=>s.id));
+  const sessions = [...(a.sessions||[]), ...(b.sessions||[]).filter(s=>!seen.has(s.id))];
+  sessions.sort((x,y) => x.date.localeCompare(y.date) || ((+x.id||0)-(+y.id||0)));
+  const exN = new Set((a.customExercises||[]).map(e=>e.name));
+  const customExercises = [...(a.customExercises||[]), ...(b.customExercises||[]).filter(e=>!exN.has(e.name))];
+  const gyI = new Set((a.customGyms||[]).map(g=>g.id));
+  const customGyms = [...(a.customGyms||[]), ...(b.customGyms||[]).filter(g=>!gyI.has(g.id))];
+  const customPlanExercises = {}, hiddenPlanExercises = {};
+  ['A','B','C'].forEach(d => {
+    const an=(a.customPlanExercises||{})[d]||[], bn=(b.customPlanExercises||{})[d]||[];
+    const nm=new Set(an.map(e=>e.name));
+    const cp=[...an, ...bn.filter(e=>!nm.has(e.name))];
+    if (cp.length) customPlanExercises[d]=cp;
+    const hd=[...new Set([...((a.hiddenPlanExercises||{})[d]||[]), ...((b.hiddenPlanExercises||{})[d]||[])])];
+    if (hd.length) hiddenPlanExercises[d]=hd;
+  });
+  const actI = new Set((a.activities||[]).map(x=>x.id));
+  const activities = [...(a.activities||[]), ...(b.activities||[]).filter(x=>!actI.has(x.id))];
+  const plans = a.plans || b.plans;
+  const out = {sessions, customExercises, customGyms, customPlanExercises, hiddenPlanExercises, activities};
+  if (plans) out.plans = plans;
+  return out;
+}
+
+// Wird vom Firebase-Modul aufgerufen wenn neuere Daten aus der Cloud kommen
+function applyRemote(remote, ts) {
+  db = remote || {};
+  try {
+    localStorage.setItem('ironlog', JSON.stringify(db));
+    if (ts) localStorage.setItem('ironlog_updated', String(ts));
+  } catch(e) {}
+  _exGroups = null;
+  const cur = document.querySelector('.screen.active')?.id;
+  if (cur === 'screen-home') renderHome();
+  else if (cur === 'screen-stats') renderStats();
+  else if (cur === 'screen-cal') renderCal();
+}
+
+function setSyncStatus(s) {
+  syncStatus = s;
+  updateSyncBadge();
+  const el = document.getElementById('sync-modal-status');
+  if (el) el.textContent = s==='on' ? '☁️ Verbunden' : s==='error' ? '⚠️ Verbindungsproblem' : 'verbinde…';
+}
+function updateSyncBadge() {
+  const el = document.getElementById('sync-badge');
+  if (!el) return;
+  const state = !syncCode ? '' :
+    syncStatus==='on' ? '☁️ Sync aktiv' :
+    syncStatus==='error' ? '⚠️ Sync-Fehler' :
+    syncStatus==='connecting' ? '☁️ verbinde…' : '☁️';
+  el.textContent = syncCode ? `${state} · ${syncCode}` : '';
+}
+
+function openSyncModal() { renderSyncModal(); openModal('modal-sync'); }
+function dismissSyncBanner(e) {
+  e.stopPropagation();
+  localStorage.setItem('ironlog_sync_dismissed','1');
+  renderHome();
+}
+function genSyncCode() {
+  const inp = document.getElementById('sync-code-inp');
+  if (inp) inp.value = 'gym-' + Math.random().toString(36).slice(2,8);
+}
+async function connectSync() {
+  const inp = document.getElementById('sync-code-inp');
+  const code = (inp?.value||'').trim().toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9_-]/g,'');
+  if (code.length < 4) { alert('Der Code braucht mindestens 4 Zeichen.'); return; }
+  if (!window._syncConnect) { alert('Sync-Modul lädt noch — bitte kurz warten und nochmal tippen.'); return; }
+  const btn = document.getElementById('sync-connect-btn');
+  if (btn) { btn.textContent = 'Verbinde…'; btn.disabled = true; }
+  try {
+    await window._syncConnect(code);
+    syncCode = code;
+    localStorage.setItem('ironlog_sync', code);
+    renderSyncModal();
+    renderHome();
+    updateSyncBadge();
+  } catch(e) {
+    alert('Verbindung fehlgeschlagen ('+(e.code||e.message||e)+'). Internet an? Sonst später nochmal versuchen.');
+    renderSyncModal();
+  }
+}
+function disconnectSync() {
+  if (!confirm('Sync trennen? Deine Daten bleiben auf diesem Gerät und in der Cloud erhalten.')) return;
+  if (window._syncStop) window._syncStop();
+  syncCode = null;
+  syncStatus = 'off';
+  localStorage.removeItem('ironlog_sync');
+  renderSyncModal();
+  renderHome();
+  updateSyncBadge();
+}
+function renderSyncModal() {
+  const body = document.getElementById('sync-body');
+  if (!body) return;
+  if (syncCode) {
+    body.innerHTML = `
+      <p style="font-size:13px;color:var(--tm);margin-bottom:14px">Deine Daten werden automatisch gesichert. Gib diesen Code auf einem anderen Gerät ein, um dort dieselben Daten zu haben:</p>
+      <div style="text-align:center;background:var(--cream);border:1.5px dashed var(--border);border-radius:5px;padding:16px;margin-bottom:8px">
+        <div style="font-family:'Oswald',serif;font-size:26px;letter-spacing:1px">${syncCode}</div>
+      </div>
+      <div style="text-align:center;font-size:11px;color:var(--tl);margin-bottom:16px" id="sync-modal-status">${syncStatus==='on'?'☁️ Verbunden':syncStatus==='error'?'⚠️ Verbindungsproblem':'verbinde…'}</div>
+      <button class="m-cancel" style="color:#e35555" onclick="disconnectSync()">Sync trennen</button>
+      <button class="m-cancel" onclick="closeModal('modal-sync')">Schließen</button>`;
+  } else {
+    body.innerHTML = `
+      <p style="font-size:13px;color:var(--tm);margin-bottom:14px">Sichert deine Daten automatisch in der Cloud und hält mehrere Geräte synchron. Merk dir deinen Code gut — er ist der Schlüssel zu deinen Daten.</p>
+      <div class="m-label">Dein Sync-Code</div>
+      <input type="text" class="m-inp" id="sync-code-inp" placeholder="z.B. sabine-gym-24" autocapitalize="none" autocomplete="off">
+      <button class="m-save" id="sync-connect-btn" onclick="connectSync()">Verbinden ✓</button>
+      <button class="m-cancel" onclick="genSyncCode()">🎲 Zufälligen Code erzeugen</button>
+      <button class="m-cancel" onclick="closeModal('modal-sync')">Später</button>`;
+  }
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────
+renderHome();
+show('home');
+document.addEventListener('touchstart', ()=>{ try { getAudio(); } catch(e){} }, {once:true});
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') document.querySelectorAll('.modal-ov.on').forEach(m=>closeModal(m.id)); });
+document.getElementById('pause-ov').addEventListener('click', e=>{ if(e.target===e.currentTarget) skipPause(); });
+// Tipp auf den Hintergrund schließt das Modal — bei offener Tastatur erst nur diese,
+// damit eine noch nicht gespeicherte Eingabe nicht verloren geht
+document.querySelectorAll('.modal-ov').forEach(m => m.addEventListener('click', e => {
+  if (e.target !== e.currentTarget) return;
+  const focused = m.querySelector('input:focus, textarea:focus');
+  if (focused) { focused.blur(); return; }
+  closeModal(m.id);
+}));
+</script>
+
+<script type="module">
+// ── FIREBASE CLOUD SYNC ─────────────────────────────────────────────────
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.0/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.8.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDBeS_N564vAqpdFEuTXtwmRq1NQxJyTGo",
+  authDomain: "ausgaben-ac792.firebaseapp.com",
+  projectId: "ausgaben-ac792",
+  storageBucket: "ausgaben-ac792.firebasestorage.app",
+  messagingSenderId: "1036481285970",
+  appId: "1:1036481285970:web:c442d03361f44a9185348b"
+};
+const SYNC_COL = "gymtracker";
+const CODE_PREFIX = "iron-";
+let _fdb = null, _unsub = null;
+function fdb() { if (!_fdb) _fdb = getFirestore(initializeApp(firebaseConfig)); return _fdb; }
+
+window._syncPush = async (code, data) => {
+  try {
+    const now = Date.now();
+    await setDoc(doc(fdb(), SYNC_COL, CODE_PREFIX + code), { json: JSON.stringify(data), updatedAt: now });
+    localStorage.setItem('ironlog_updated', String(now));
+    setSyncStatus('on');
+    return true;
+  } catch(e) {
+    setSyncStatus('error');
+    return false;
+  }
+};
+
+window._syncConnect = async (code) => {
+  const ref = doc(fdb(), SYNC_COL, CODE_PREFIX + code);
+  const snap = await getDoc(ref); // wirft bei Berechtigungs-/Netzfehler → connectSync zeigt Meldung
+  if (snap.exists()) {
+    let remote = {};
+    try { remote = JSON.parse(snap.data().json || '{}'); } catch(e) {}
+    applyRemote(mergeDb(db, remote));
+  }
+  const now = Date.now();
+  await setDoc(ref, { json: JSON.stringify(db), updatedAt: now });
+  localStorage.setItem('ironlog_updated', String(now));
+  startListen(code);
+};
+
+function startListen(code) {
+  if (_unsub) _unsub();
+  setSyncStatus('connecting');
+  _unsub = onSnapshot(doc(fdb(), SYNC_COL, CODE_PREFIX + code), snap => {
+    if (snap.metadata.hasPendingWrites) { setSyncStatus('on'); return; }
+    if (!snap.exists()) { window._syncPush(code, db); return; }
+    const d = snap.data();
+    const localUpd = +(localStorage.getItem('ironlog_updated') || 0);
+    if ((d.updatedAt||0) > localUpd) {
+      let remote = null;
+      try { remote = JSON.parse(d.json || '{}'); } catch(e) {}
+      if (remote) applyRemote(remote, d.updatedAt);
+    } else if ((d.updatedAt||0) < localUpd) {
+      // Lokal ist neuer (z.B. offline geändert) → hochladen
+      window._syncPush(code, db);
+      return;
+    }
+    setSyncStatus('on');
+  }, err => setSyncStatus('error'));
+}
+window._syncStart = startListen;
+window._syncStop = () => { if (_unsub) { _unsub(); _unsub = null; } };
+
+// Auto-Start wenn Code vorhanden
+if (syncCode) startListen(syncCode);
+</script>
+</body>
+</html>
