@@ -405,7 +405,7 @@ body{font-family:'Barlow',sans-serif;background:var(--cream);color:var(--text);m
     <div class="m-title">Übung hinzufügen</div>
     <input type="text" class="m-inp" id="exlib-search" placeholder="Suchen..." oninput="renderExLib(this.value)" autocomplete="off">
     <div id="exlib-list"></div>
-    <button class="m-save" style="margin-top:10px" onclick="closeModal('modal-exlib');openNewEx()">+ Neue Übung erstellen</button>
+    <button class="m-save" style="margin-top:10px" onclick="openNewExFromLib()">+ Neue Übung erstellen</button>
     <button class="m-cancel" onclick="closeModal('modal-exlib')">Abbrechen</button>
   </div>
 </div>
@@ -653,6 +653,7 @@ let replaceIdx = null;
 let editMode = false;
 let editSessionId = null;
 let exLibExpanded = new Set();
+let exLibTarget = 'session'; // 'session' | 'plan'
 let _exGroups = null; // Cache für getAllExerciseGroups, wird bei saveDB invalidiert
 let syncCode = localStorage.getItem('ironlog_sync') || null;
 let syncStatus = 'off'; // off | connecting | on | error
@@ -1291,7 +1292,10 @@ function renderPlanEdit() {
     </div>`;
   });
 
-  html += `<button class="add-ex-btn" style="width:100%;margin-top:8px" onclick="peAdd()">+ Übung zum Plan</button>`;
+  html += `<div style="display:flex;gap:8px;margin-top:8px">
+    <button class="add-ex-btn" style="flex:1" onclick="openAddEx('plan')">+ Aus Liste</button>
+    <button class="add-ex-btn" style="flex:1" onclick="peAdd()">+ Neue Übung</button>
+  </div>`;
 
   if (pinned.length) {
     html += `<div class="slbl">📌 Per Session hinzugefügt</div>`;
@@ -1715,7 +1719,7 @@ function saveReplace() {
 // ADD EXERCISE
 function getAllExerciseGroups() {
   const planMap = {};
-  Object.entries(PLANS).forEach(([day, plan]) => {
+  Object.entries(PLANS()).forEach(([day, plan]) => {
     plan.sections.forEach(sec => {
       sec.exs.forEach(ex => {
         if (!planMap[ex.name]) planMap[ex.name] = {id: ex.id, s: ex.s, r: ex.r, w: ex.w, rest: ex.rest};
@@ -1760,13 +1764,32 @@ function exGroupsCached() {
   return _exGroups;
 }
 
-function openAddEx() {
+function openAddEx(target) {
+  exLibTarget = target || 'session';
+  if (exLibTarget === 'plan') closeModal('modal-planedit');
   exLibExpanded.clear();
   const inp = document.getElementById('exlib-search');
   if (inp) inp.value = '';
   openModal('modal-exlib');
   renderExLib('');
   setTimeout(() => { if (inp) inp.focus(); }, 100);
+}
+function openNewExFromLib() {
+  const t = exLibTarget;
+  exLibTarget = 'session';
+  closeModal('modal-exlib');
+  exLibTarget = t;
+  openNewEx();
+}
+function addExToPlan(name, s, r, w, rest) {
+  const list = planExercises(editPlanDay);
+  if (list.some(e => e.name.toLowerCase() === String(name).toLowerCase())) {
+    alert('"'+name+'" ist schon in Plan '+editPlanDay+'.');
+  } else {
+    list.push({id:'p'+editPlanDay.toLowerCase()+'-'+Date.now(), name, s:s||3, r:r||10, w:w||0, rest:rest||60, section:null});
+    setPlanExercises(editPlanDay, list);
+  }
+  closeModal('modal-exlib');
 }
 function openNewEx() {
   document.getElementById('addex-name').value='';
@@ -1834,6 +1857,7 @@ function getLastGoalForExercise(name) {
   return null;
 }
 function addFromLibrary(id, name, s, r, w, rest) {
+  if (exLibTarget === 'plan') { addExToPlan(name, s, r, w, rest); return; }
   const lastGoal = getLastGoalForExercise(name);
   const newEx = {
     id: 'custom-'+Date.now(),
@@ -1888,6 +1912,16 @@ function saveAddEx() {
   const r=parseInt(document.getElementById('addex-reps').value)||10;
   const w=parseFloat(document.getElementById('addex-weight').value)||0;
   const rest=parseInt(document.getElementById('addex-rest').value)||60;
+  if (exLibTarget === 'plan') {
+    closeModal('modal-addex');
+    addExToPlan(name, s, r, w, rest);
+    if(!db.customExercises) db.customExercises = [];
+    if (!db.customExercises.some(x=>x.name.toLowerCase()===name.toLowerCase())) {
+      db.customExercises.push({id:'lib-'+Date.now(), name, s, r, w, rest, gym:'any'});
+      saveDB();
+    }
+    return;
+  }
   const newEx={id:'custom-'+Date.now(),name,rest,opt:false,sets:Array.from({length:s},()=>({weight:w,reps:r,done:false}))};
   if(session) {
     session.exercises.push(newEx);
@@ -2147,6 +2181,12 @@ function closeModal(id) {
   document.getElementById(id).classList.remove('on');
   document.body.style.overflow='';
   if (id==='modal-planedit') renderDayGrid();
+  if (id==='modal-exlib' && exLibTarget==='plan') {
+    exLibTarget = 'session';
+    peOpenIdx = null;
+    openModal('modal-planedit');
+    renderPlanEdit();
+  }
 }
 
 // ── UTILS ─────────────────────────────────────────────────────────────────
