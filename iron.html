@@ -375,24 +375,12 @@ body{font-family:'Barlow',sans-serif;background:var(--cream);color:var(--text);m
     <div class="m-label">Name</div>
     <input type="text" class="m-inp" id="addex-name" placeholder="Übungsname..." list="exnames-dl" oninput="onAddExName(this.value)" autocomplete="off">
     <datalist id="exnames-dl"></datalist>
-    <div class="m-row">
-      <div>
-        <div class="m-label">Sätze</div>
-        <input type="number" class="m-inp" id="addex-sets" value="3" min="1">
-      </div>
-      <div>
-        <div class="m-label">Reps</div>
-        <input type="number" class="m-inp" id="addex-reps" value="10" min="1">
-      </div>
-      <div>
-        <div class="m-label">kg</div>
-        <input type="number" class="m-inp" id="addex-weight" value="0" step="0.5">
-      </div>
-      <div>
-        <div class="m-label">Pause s</div>
-        <input type="number" class="m-inp" id="addex-rest" value="60" step="15">
-      </div>
+    <div class="m-label">Art</div>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <button class="pe-btn" id="addex-mode-w" style="flex:1;padding:9px 0" onclick="setAddExMode('')">🏋️ Gewicht</button>
+      <button class="pe-btn" id="addex-mode-t" style="flex:1;padding:9px 0" onclick="setAddExMode('time')">⏱ Zeit</button>
     </div>
+    <div class="m-row" id="addex-fields"></div>
     <button class="m-save" onclick="saveAddEx()">Hinzufügen ✓</button>
     <button class="m-cancel" onclick="closeModal('modal-addex')">Abbrechen</button>
   </div>
@@ -1767,7 +1755,7 @@ function getAllExerciseGroups() {
     });
   });
   (db.customExercises||[]).forEach(ex => {
-    if (!planMap[ex.name]) planMap[ex.name] = {id: ex.id, s: ex.s||3, r: ex.r||10, w: ex.w||0, rest: ex.rest||60};
+    if (!planMap[ex.name]) planMap[ex.name] = {id: ex.id, s: ex.s||3, r: ex.r||10, w: ex.w||0, rest: ex.rest||60, mode: ex.mode};
   });
 
   const history = {};
@@ -1817,6 +1805,28 @@ function openAddEx(target, idx) {
   renderExLib('');
   setTimeout(() => { if (inp) inp.focus(); }, 100);
 }
+let addExMode = '';
+function renderAddExFields(keep) {
+  const tm = addExMode === 'time';
+  const old = keep ? {s:val('addex-sets'), r:val('addex-reps'), w:val('addex-weight'), rest:val('addex-rest')} : null;
+  const wrap = document.getElementById('addex-fields');
+  if (!wrap) return;
+  const f = (lbl,id,v,step,min) => `<div><div class="m-label">${lbl}</div><input type="number" class="m-inp" id="${id}" value="${v}" step="${step}" min="${min}"></div>`;
+  wrap.innerHTML = tm
+    ? f('Sätze','addex-sets', old?old.s:3, '1','1') + f('Min','addex-weight', old?old.w:1, '1','0') + f('Sek','addex-reps', old?old.r:0, '5','0') + f('Pause s','addex-rest', old?old.rest:60, '15','0')
+    : f('Sätze','addex-sets', old?old.s:3, '1','1') + f('Reps','addex-reps', old?old.r:10, '1','1') + f('kg','addex-weight', old?old.w:0, '0.5','0') + f('Pause s','addex-rest', old?old.rest:60, '15','0');
+  const bw = document.getElementById('addex-mode-w'), bt = document.getElementById('addex-mode-t');
+  const on = 'background:var(--rl);border-color:var(--rose);color:var(--rd);';
+  if (bw) bw.style.cssText = 'flex:1;padding:9px 0;' + (tm?'':on);
+  if (bt) bt.style.cssText = 'flex:1;padding:9px 0;' + (tm?on:'');
+}
+function val(id) { const e = document.getElementById(id); return e ? e.value : ''; }
+function setAddExMode(m) {
+  if (addExMode === (m||'')) return;
+  addExMode = m || '';
+  renderAddExFields(false);
+}
+
 function openNewExFromLib() {
   const t = exLibTarget;
   exLibTarget = 'session';
@@ -1849,6 +1859,8 @@ function addExToPlan(name, s, r, w, rest, mode) {
   closeModal('modal-exlib');
 }
 function openNewEx() {
+  addExMode = '';
+  renderAddExFields(false);
   document.getElementById('addex-name').value='';
   openModal('modal-addex');
   setTimeout(()=>document.getElementById('addex-name').focus(),100);
@@ -1958,6 +1970,7 @@ function autoFillAddEx(name) {
   if (!match) return;
   const src = match.variants.find(v => v.source==='history') || match.variants[0];
   if (!src) return;
+  if ((src.mode||'') !== addExMode) { addExMode = src.mode || ''; renderAddExFields(false); }
   document.getElementById('addex-sets').value = src.s;
   document.getElementById('addex-reps').value = src.r;
   document.getElementById('addex-weight').value = src.w;
@@ -1971,17 +1984,18 @@ function saveAddEx() {
   const r=parseInt(document.getElementById('addex-reps').value)||10;
   const w=parseFloat(document.getElementById('addex-weight').value)||0;
   const rest=parseInt(document.getElementById('addex-rest').value)||60;
+  const mode = addExMode || undefined;
   if (exLibTarget === 'plan') {
     closeModal('modal-addex');
-    addExToPlan(name, s, r, w, rest);
+    addExToPlan(name, s, r, w, rest, mode);
     if(!db.customExercises) db.customExercises = [];
     if (!db.customExercises.some(x=>x.name.toLowerCase()===name.toLowerCase())) {
-      db.customExercises.push({id:'lib-'+Date.now(), name, s, r, w, rest, gym:'any'});
+      db.customExercises.push({id:'lib-'+Date.now(), name, s, r, w, rest, mode, gym:'any'});
       saveDB();
     }
     return;
   }
-  const newEx={id:'custom-'+Date.now(),name,rest,opt:false,sets:Array.from({length:s},()=>({weight:w,reps:r,done:false}))};
+  const newEx={id:'custom-'+Date.now(),name,rest,opt:false,mode,sets:Array.from({length:s},()=>({weight:w,reps:r,done:false}))};
   if(session) {
     session.exercises.push(newEx);
     saveActive();
@@ -1998,9 +2012,9 @@ function saveAddEx() {
   if(!db.customExercises) db.customExercises = [];
   const existIdx = db.customExercises.findIndex(x => x.name.toLowerCase() === name.toLowerCase());
   if (existIdx >= 0) {
-    db.customExercises[existIdx] = {id: db.customExercises[existIdx].id, name, s, r, w, rest, gym: session?.gym || db.customExercises[existIdx].gym || 'any'};
+    db.customExercises[existIdx] = {id: db.customExercises[existIdx].id, name, s, r, w, rest, mode, gym: session?.gym || db.customExercises[existIdx].gym || 'any'};
   } else {
-    db.customExercises.push({id:'lib-'+Date.now(), name, s, r, w, rest, gym: session?.gym || 'any'});
+    db.customExercises.push({id:'lib-'+Date.now(), name, s, r, w, rest, mode, gym: session?.gym || 'any'});
   }
   saveDB();
 }
