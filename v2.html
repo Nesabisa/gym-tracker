@@ -1211,11 +1211,14 @@ function renderDayModal() {
   html += `<div class="m-label" style="margin-top:14px">${editing?'Aktivität bearbeiten':'Aktivität eintragen'}</div>
     ${editing?'':chips}
     ${[ACT_ICONS.slice(0, Math.ceil(ACT_ICONS.length/2)), ACT_ICONS.slice(Math.ceil(ACT_ICONS.length/2))].map(row =>
-      `<div class="emoji-row">${row.map(ic=>`<button class="emoji-btn${ic===dayActIcon?' sel':''}" data-icon="${ic}" onclick="selActIcon('${ic}')">${ic}</button>`).join('')}</div>`
+      `<div class="emoji-row">${row.map(ic=>`<button class="emoji-btn${ic===dayActIcon?' sel':''}" data-icon="${ic}" onmousedown="event.preventDefault()" onclick="selActIcon('${ic}')">${ic}</button>`).join('')}</div>`
     ).join('')}
-    <input type="text" class="m-inp" id="act-inp" placeholder="z.B. Yoga, Spinning, Joggen..." autocomplete="off"
-      onkeydown="if(event.key==='Enter')${editing?'saveActEdit()':'addActivity()'}">
-    <button class="m-save" onclick="${editing?'saveActEdit()':'addActivity()'}">${editing?'Speichern ✓':'Hinzufügen ✓'}</button>
+    <div style="display:flex;gap:8px;align-items:stretch">
+      <input type="text" class="m-inp" id="act-inp" style="flex:1;margin-bottom:0;min-width:0" placeholder="z.B. Yoga, Spinning..." autocomplete="off"
+        onkeydown="if(event.key==='Enter')${editing?'saveActEdit()':'addActivity()'}">
+      <button class="m-save" style="width:auto;padding:0 20px;flex-shrink:0;font-size:17px"
+        onmousedown="event.preventDefault()" onclick="${editing?'saveActEdit()':'addActivity()'}">${editing?'✓':'+'}</button>
+    </div>
     ${editing?`<button class="m-cancel" onclick="cancelActEdit()">Abbrechen</button>`:''}`;
 
   document.getElementById('day-body').innerHTML = html;
@@ -2217,8 +2220,14 @@ show('home');
 document.addEventListener('touchstart', ()=>{ try { getAudio(); } catch(e){} }, {once:true});
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') document.querySelectorAll('.modal-ov.on').forEach(m=>closeModal(m.id)); });
 document.getElementById('pause-ov').addEventListener('click', e=>{ if(e.target===e.currentTarget) skipPause(); });
-// Tipp auf den Hintergrund schließt jedes Modal
-document.querySelectorAll('.modal-ov').forEach(m => m.addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(m.id); }));
+// Tipp auf den Hintergrund schließt das Modal — bei offener Tastatur erst nur diese,
+// damit eine noch nicht gespeicherte Eingabe nicht verloren geht
+document.querySelectorAll('.modal-ov').forEach(m => m.addEventListener('click', e => {
+  if (e.target !== e.currentTarget) return;
+  const focused = m.querySelector('input:focus, textarea:focus');
+  if (focused) { focused.blur(); return; }
+  closeModal(m.id);
+}));
 </script>
 
 <script type="module">
