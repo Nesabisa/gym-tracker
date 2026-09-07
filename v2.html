@@ -655,6 +655,8 @@ let editMode = false;
 let editSessionId = null;
 let exLibExpanded = new Set();
 let exLibTarget = 'session'; // 'session' | 'plan'
+let peReplaceIdx = null;   // Position, die aus der Liste ersetzt wird
+let _peReturnOpen = null;  // Zeile, die nach der Liste offen bleibt
 let _exGroups = null; // Cache für getAllExerciseGroups, wird bei saveDB invalidiert
 let syncCode = localStorage.getItem('gymtracker_sync') || null;
 let syncStatus = 'off'; // off | connecting | on | error
@@ -826,13 +828,16 @@ function renderStats() {
   sorted.forEach(s => {
     const gymId = normGym(s.gym);
     s.exercises.forEach(ex => {
-      const validSets = ex.sets.filter(x=>x.weight>0 && x.reps>0);
+      const tm = isTime(ex);
+      const validSets = tm ? ex.sets.filter(x=>setSecs(x)>0) : ex.sets.filter(x=>x.weight>0 && x.reps>0);
       if (!validSets.length) return;
-      const maxW = Math.max(...validSets.map(x=>x.weight));
-      const avgReps = Math.round(validSets.reduce((a,x)=>a+x.reps,0)/validSets.length);
+      const maxW = tm ? Math.round(Math.max(...validSets.map(setSecs))/6)/10
+                      : Math.max(...validSets.map(x=>x.weight));
+      const avgReps = tm ? validSets.length
+                         : Math.round(validSets.reduce((a,x)=>a+x.reps,0)/validSets.length);
       if (!exMap[ex.name]) exMap[ex.name] = {};
       if (!exMap[ex.name][gymId]) exMap[ex.name][gymId] = [];
-      exMap[ex.name][gymId].push({date:s.date, w:maxW, reps:avgReps});
+      exMap[ex.name][gymId].push({date:s.date, w:maxW, reps:avgReps, unit: tm?'min':'kg'});
     });
   });
 
@@ -1005,6 +1010,7 @@ function bigChart(gymData, name) {
 }
 
 function singleChart(data, name, gymId) {
+  const unit = data[0]?.unit || 'kg';
   const col = gymColor(gymId);
   const inf = gymInfo(gymId);
   const W=340, H=194, pL=44, pR=14, pT=30, pB=46;
@@ -1026,7 +1032,7 @@ function singleChart(data, name, gymId) {
   const grid = gridVals.map(v=>{
     const y = pT + (1-(v-yMin)/yRange)*cH;
     return `<line x1="${pL}" y1="${y.toFixed(1)}" x2="${W-pR}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-width="1" stroke-dasharray="3,3"/>
-            <text x="${pL-5}" y="${(y+4).toFixed(1)}" font-size="9" fill="var(--tl)" text-anchor="end">${v}kg</text>`;
+            <text x="${pL-5}" y="${(y+4).toFixed(1)}" font-size="9" fill="var(--tl)" text-anchor="end">${v}${unit}</text>`;
   }).join('');
 
   const lineStr = pts.map(p=>`${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
@@ -1038,27 +1044,27 @@ function singleChart(data, name, gymId) {
     const labelY = p.y > pT+16 ? p.y-10 : p.y+18;
     const dateX = Math.max(pL+12, Math.min(W-pR-12, p.x));
     items += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4.5" fill="${col.stroke}"/>
-      <text x="${p.x.toFixed(1)}" y="${labelY.toFixed(1)}" font-size="10" fill="${col.stroke}" text-anchor="middle" font-weight="500">${p.w}kg</text>
+      <text x="${p.x.toFixed(1)}" y="${labelY.toFixed(1)}" font-size="10" fill="${col.stroke}" text-anchor="middle" font-weight="500">${p.w}${unit}</text>
       <text x="${dateX.toFixed(1)}" y="${(pT+cH+14).toFixed(1)}" font-size="9" fill="var(--tl)" text-anchor="middle">${fmtDateShort(p.date)}</text>
-      <text x="${dateX.toFixed(1)}" y="${(pT+cH+26).toFixed(1)}" font-size="9" fill="var(--sd)" text-anchor="middle">${p.reps}×</text>`;
+      <text x="${dateX.toFixed(1)}" y="${(pT+cH+26).toFixed(1)}" font-size="9" fill="var(--sd)" text-anchor="middle">${unit==='min'?(p.reps+(p.reps===1?' Satz':' Sätze')):(p.reps+'×')}</text>`;
   });
 
   const first=data[0], last=data[data.length-1];
   const diff=(last.w-first.w).toFixed(1);
   const diffCls=diff>0?'up':diff<0?'down':'';
-  const diffStr=diff>0?`+${diff}kg`:diff<0?`${diff}kg`:'±0';
+  const diffStr=diff>0?`+${diff}${unit}`:diff<0?`${diff}${unit}`:'±0';
 
   return `<div class="chart-card">
     <div class="chart-prog">
       <div class="chart-name">${name} <span class="gym-pill ${inf.cls}">${inf.icon} ${inf.label}</span></div>
       <div class="chart-diff ${diffCls}">${diffStr}</div>
-      <div class="chart-meta">${data.length} Session${data.length!==1?'s':''} · aktuell ${last.w}kg</div>
+      <div class="chart-meta">${data.length} Session${data.length!==1?'s':''} · aktuell ${last.w}${unit}</div>
     </div>
     <svg viewBox="0 0 ${W} ${H}" class="chart-svg">
       ${grid}
       ${items}
     </svg>
-    <div style="text-align:center;font-size:10px;color:var(--tl);margin-top:6px">Grüne Zahl = ⌀ Wiederholungen pro Satz</div>
+    <div style="text-align:center;font-size:10px;color:var(--tl);margin-top:6px">Grüne Zahl = ${unit==='min'?'Anzahl Sätze':'⌀ Wiederholungen pro Satz'}</div>
   </div>`;
 }
 
@@ -1275,7 +1281,7 @@ function renderPlanEdit() {
     html += `<div class="pe-row" style="flex-wrap:wrap;${open?'border:1.5px solid var(--rose);':''}">
       <div class="pe-name" onclick="pePick(${i})" style="cursor:pointer">
         <div>${esc(ex.name)}</div>
-        <div style="font-size:10px;color:var(--tl);margin-top:2px">${ex.s}×${ex.r} · ${ex.w||0}kg · ${ex.rest||60}s</div>
+        <div style="font-size:10px;color:var(--tl);margin-top:2px">${isTime(ex) ? ex.s+'× ⏱ '+fmtSecs((ex.w||0)*60+(ex.r||0))+' min' : ex.s+'×'+ex.r+' · '+(ex.w||0)+'kg'} · Pause ${ex.rest||60}s</div>
       </div>
       <button class="pe-btn" onclick="peMove(${i},-1)" ${i===0?'disabled style="opacity:.3"':''}>↑</button>
       <button class="pe-btn" onclick="peMove(${i},1)" ${i===list.length-1?'disabled style="opacity:.3"':''}>↓</button>
@@ -1283,11 +1289,19 @@ function renderPlanEdit() {
       <button class="pe-btn" style="color:#e35555;border-color:#5a2626" onclick="peDel(${i})">🗑</button>
       ${open ? `<div style="width:100%;border-top:1px solid var(--border);margin-top:8px;padding-top:10px">
         <div class="m-label">Name</div>
-        <input type="text" class="m-inp" id="pe-f-name" value="${esc(ex.name)}">
+        <div style="display:flex;gap:8px;margin-bottom:12px">
+          <input type="text" class="m-inp" id="pe-f-name" style="flex:1;margin-bottom:0;min-width:0" value="${esc(ex.name)}">
+          <button class="pe-btn" style="padding:0 14px" onclick="openAddEx('plan',${i})">☰ Liste</button>
+        </div>
+        <div class="m-label">Art</div>
+        <div style="display:flex;gap:8px;margin-bottom:12px">
+          <button class="pe-btn" style="flex:1;padding:9px 0${isTime(ex)?'':';background:var(--rl);border-color:var(--rose);color:var(--rd)'}" onclick="peSetMode(${i},'')">🏋️ Gewicht</button>
+          <button class="pe-btn" style="flex:1;padding:9px 0${isTime(ex)?';background:var(--rl);border-color:var(--rose);color:var(--rd)':''}" onclick="peSetMode(${i},'time')">⏱ Zeit</button>
+        </div>
         <div class="m-row">
           <div><div class="m-label">Sätze</div><input type="number" class="m-inp" id="pe-f-s" value="${ex.s}" min="1"></div>
-          <div><div class="m-label">Wdh</div><input type="number" class="m-inp" id="pe-f-r" value="${ex.r}" min="1"></div>
-          <div><div class="m-label">kg</div><input type="number" class="m-inp" id="pe-f-w" value="${ex.w||0}" step="0.5"></div>
+          <div><div class="m-label">${isTime(ex)?'Min':'Wdh'}</div><input type="number" class="m-inp" id="pe-f-${isTime(ex)?'w':'r'}" value="${isTime(ex)?(ex.w||0):ex.r}" min="0"></div>
+          <div><div class="m-label">${isTime(ex)?'Sek':'kg'}</div><input type="number" class="m-inp" id="pe-f-${isTime(ex)?'r':'w'}" value="${isTime(ex)?(ex.r||0):(ex.w||0)}" step="${isTime(ex)?'5':'0.5'}"></div>
           <div><div class="m-label">Pause</div><input type="number" class="m-inp" id="pe-f-rest" value="${ex.rest||60}" step="15"></div>
         </div>
         <div class="m-label">Überschrift darüber (optional)</div>
@@ -1338,12 +1352,28 @@ function peSave(i) {
   if (!name) return;
   ex.name = name;
   ex.s = parseInt(document.getElementById('pe-f-s').value)||3;
-  ex.r = parseInt(document.getElementById('pe-f-r').value)||10;
+  ex.r = parseInt(document.getElementById('pe-f-r').value)||0;
   ex.w = parseFloat(document.getElementById('pe-f-w').value)||0;
+  if (!isTime(ex) && !ex.r) ex.r = 10;
   ex.rest = parseInt(document.getElementById('pe-f-rest').value)||60;
   ex.section = document.getElementById('pe-f-sec').value.trim() || null;
   setPlanExercises(editPlanDay, list);
   peOpenIdx = null;
+  renderPlanEdit();
+}
+
+function peSetMode(i, mode) {
+  const list = planExercises(editPlanDay);
+  const ex = list[i];
+  if (!ex) return;
+  const wasTime = ex.mode === 'time';
+  const nowTime = mode === 'time';
+  if (wasTime === nowTime) return;
+  ex.mode = nowTime ? 'time' : undefined;
+  if (nowTime) { ex.w = 1; ex.r = 0; }        // 1:00 min als Start
+  else { ex.w = 0; ex.r = 10; }
+  setPlanExercises(editPlanDay, list);
+  peOpenIdx = i;
   renderPlanEdit();
 }
 
@@ -1385,7 +1415,7 @@ function peAdoptPinned(name) {
   const pin = ((db.customPlanExercises||{})[editPlanDay]||[]).find(e=>e.name===name);
   if (!pin) return;
   const list = planExercises(editPlanDay);
-  list.push({id:'p'+editPlanDay.toLowerCase()+'-'+Date.now(), name:pin.name, s:pin.s||3, r:pin.r||10, w:pin.w||0, rest:pin.rest||60, section:null});
+  list.push({id:'p'+editPlanDay.toLowerCase()+'-'+Date.now(), name:pin.name, s:pin.s||3, r:pin.r||10, w:pin.w||0, rest:pin.rest||60, mode:pin.mode||undefined, section:null});
   setPlanExercises(editPlanDay, list);
   db.customPlanExercises[editPlanDay] = db.customPlanExercises[editPlanDay].filter(e=>e.name!==name);
   saveDB();
@@ -1462,14 +1492,16 @@ function startSession() {
     if (ex.section) pendingSection = ex.section;
     if (hiddenExs.has(ex.name)) return;
     const src = lastData[ex.id] || lastData['n:'+ex.name];
-    const w = (src && src.w) ? src.w : ex.w;
-    const reps = (src && src.r) ? src.r : ex.r;
+    const tmEx = isTime(ex);
+    const w = src ? (tmEx ? (src.w != null ? src.w : ex.w) : (src.w || ex.w)) : ex.w;
+    const reps = src ? (tmEx ? (src.r != null ? src.r : ex.r) : (src.r || ex.r)) : ex.r;
     const numSets = (src && src.s) ? src.s : ex.s;
     exercises.push({
       id: ex.id,
       name: ex.name,
       rest: ex.rest,
       opt: ex.opt||false,
+      mode: ex.mode||undefined,
       lastW: (src && src.w) ? src.w : undefined,
       section: pendingSection,
       sets: Array.from({length:numSets}, ()=>({weight:w, reps:reps, done:false}))
@@ -1484,7 +1516,7 @@ function startSession() {
     const w = (src && src.w) ? src.w : ce.w;
     const reps = (src && src.r) ? src.r : (ce.r||10);
     const numSets = (src && src.s) ? src.s : (ce.s||3);
-    exercises.push({id:'cplan-'+ce.name.replace(/[^a-z0-9]/gi,''), name:ce.name, rest:ce.rest||60, opt:false, lastW:(src&&src.w)?src.w:undefined, section:null, sets:Array.from({length:numSets},()=>({weight:w,reps:reps,done:false}))});
+    exercises.push({id:'cplan-'+ce.name.replace(/[^a-z0-9]/gi,''), name:ce.name, rest:ce.rest||60, opt:false, mode:ce.mode||undefined, lastW:(src&&src.w)?src.w:undefined, section:null, sets:Array.from({length:numSets},()=>({weight:w,reps:reps,done:false}))});
   });
 
   const lastGoals = (() => {
@@ -1507,6 +1539,12 @@ function startSession() {
   startSessTimer();
 }
 
+// Zeit-Übungen (Cardio): weight-Feld hält Minuten, reps-Feld Sekunden
+function isTime(ex) { return !!ex && ex.mode === 'time'; }
+function setSecs(s) { return (parseFloat(s.weight)||0)*60 + (parseInt(s.reps)||0); }
+function fmtSecs(secs) { const m=Math.floor(secs/60), r=Math.round(secs%60); return m+':'+String(r).padStart(2,'0'); }
+function setHasData(ex, s) { return isTime(ex) ? setSecs(s) > 0 : (s.weight > 0 || s.reps > 0); }
+
 function normGym(g) { return (g==='bs'||g==='bs1') ? 'bs1' : (g||'evo'); }
 
 // Letzte Werte (Gewicht, Wdh, Satzzahl) pro Übung, in 3 Stufen:
@@ -1520,9 +1558,10 @@ function getLastExData(day, gym) {
   tiers.forEach(tier => {
     for (let i = tier.length-1; i >= 0; i--) {
       tier[i].exercises.forEach(ex => {
-        const used = ex.sets.filter(x => x.weight > 0 || x.reps > 0);
+        const used = ex.sets.filter(x => setHasData(ex, x));
         if (!used.length) return;
-        const s0 = ex.sets.find(x=>x.done&&x.weight>0) || ex.sets.find(x=>x.weight>0) || used[0];
+        const s0 = isTime(ex) ? (used.find(x=>x.done) || used[0])
+                              : (ex.sets.find(x=>x.done&&x.weight>0) || ex.sets.find(x=>x.weight>0) || used[0]);
         const entry = {w: s0.weight||0, r: s0.reps||0, s: used.length};
         if (out[ex.id] === undefined) out[ex.id] = entry;
         if (out['n:'+ex.name] === undefined) out['n:'+ex.name] = entry;
@@ -1554,14 +1593,15 @@ function renderExCard(idx, nc) {
   const numCls = 'n'+nc;
   const hint = ex.lastW !== undefined
     ? `<div class="last-hint">↑ Letzte Session: <span>${ex.lastW}kg</span></div>` : '';
+  const tm = isTime(ex);
   const rows = ex.sets.map((s,si)=>`
     <div class="set-row" id="sr-${idx}-${si}">
       <span class="snr">${si+1}</span>
-      <input class="sinp${s.done?' faded':''}" type="number" step="0.5"
-        value="${s.weight||''}" placeholder="0" onchange="updSet(${idx},${si},'weight',this.value)">
-      <span class="sx">kg ×</span>
+      <input class="sinp${s.done?' faded':''}" type="number" step="${tm?'1':'0.5'}"
+        value="${s.weight||''}" placeholder="${tm?'Min':'0'}" onchange="updSet(${idx},${si},'weight',this.value)">
+      <span class="sx">${tm?'min :':'kg ×'}</span>
       <input class="sinp${s.done?' faded':''}" type="number"
-        value="${s.reps||''}" placeholder="Wdh" onchange="updSet(${idx},${si},'reps',this.value)">
+        value="${s.reps||''}" placeholder="${tm?'Sek':'Wdh'}" onchange="updSet(${idx},${si},'reps',this.value)">
       <button class="done-btn${s.done?' done':''}" onclick="togDone(${idx},${si})">${s.done?'✓':'○'}</button>
       <button class="del-set" onclick="delSet(${idx},${si})" title="Satz löschen">✕</button>
     </div>`).join('');
@@ -1579,13 +1619,13 @@ function renderExCard(idx, nc) {
   })() : '';
   const goalHtml = `<div class="goal-row">
     <span style="font-size:10px;color:var(--tl);flex-shrink:0">Nächstes Mal:</span>
-    <button class="goal-btn${kg==='up'?' gon':''}" data-field="kg" data-val="up" onclick="setGoal(${idx},'kg','up')">↑ kg</button>
+    <button class="goal-btn${kg==='up'?' gon':''}" data-field="kg" data-val="up" onclick="setGoal(${idx},'kg','up')">↑ ${tm?'Zeit':'kg'}</button>
     <button class="goal-btn${kg==='same'?' gon':''}" data-field="kg" data-val="same" onclick="setGoal(${idx},'kg','same')">=</button>
-    <button class="goal-btn${kg==='down'?' gon':''}" data-field="kg" data-val="down" onclick="setGoal(${idx},'kg','down')">↓ kg</button>
+    <button class="goal-btn${kg==='down'?' gon':''}" data-field="kg" data-val="down" onclick="setGoal(${idx},'kg','down')">↓ ${tm?'Zeit':'kg'}</button>
     <span style="color:var(--border)">|</span>
-    <button class="goal-btn${rp==='up'?' gon':''}" data-field="reps" data-val="up" onclick="setGoal(${idx},'reps','up')">↑ Wdh</button>
+    <button class="goal-btn${rp==='up'?' gon':''}" data-field="reps" data-val="up" onclick="setGoal(${idx},'reps','up')">↑ ${tm?'Sek':'Wdh'}</button>
     <button class="goal-btn${rp==='same'?' gon':''}" data-field="reps" data-val="same" onclick="setGoal(${idx},'reps','same')">=</button>
-    <button class="goal-btn${rp==='down'?' gon':''}" data-field="reps" data-val="down" onclick="setGoal(${idx},'reps','down')">↓ Wdh</button>
+    <button class="goal-btn${rp==='down'?' gon':''}" data-field="reps" data-val="down" onclick="setGoal(${idx},'reps','down')">↓ ${tm?'Sek':'Wdh'}</button>
   </div>`;
   const cueList = CUES[ex.name];
   const cueHtml = cueList ? `<div class="cue-section">
@@ -1632,7 +1672,7 @@ function confirmAddToPlan(day) {
     alert('"'+ex.name+'" ist schon in Plan '+day+'.');
   } else {
     const lastSet = ex.sets[ex.sets.length-1]||{weight:0,reps:10};
-    db.customPlanExercises[day].push({name:ex.name, s:ex.sets.length, r:lastSet.reps, w:lastSet.weight||0, rest:ex.rest||60});
+    db.customPlanExercises[day].push({name:ex.name, s:ex.sets.length, r:lastSet.reps, w:lastSet.weight||0, rest:ex.rest||60, mode:ex.mode||undefined});
     saveDB();
     alert('✓ "'+ex.name+'" dauerhaft zu Plan '+day+' hinzugefügt!');
   }
@@ -1727,7 +1767,7 @@ function getAllExerciseGroups() {
   Object.entries(PLANS()).forEach(([day, plan]) => {
     plan.sections.forEach(sec => {
       sec.exs.forEach(ex => {
-        if (!planMap[ex.name]) planMap[ex.name] = {id: ex.id, s: ex.s, r: ex.r, w: ex.w, rest: ex.rest};
+        if (!planMap[ex.name]) planMap[ex.name] = {id: ex.id, s: ex.s, r: ex.r, w: ex.w, rest: ex.rest, mode: ex.mode};
       });
     });
   });
@@ -1739,12 +1779,14 @@ function getAllExerciseGroups() {
   sessionsByDate().forEach(s => {
     const gymKey = normGym(s.gym);
     s.exercises.forEach(ex => {
-      const valid = ex.sets.filter(x => x.weight > 0 && x.reps > 0);
+      const tm = isTime(ex);
+      const valid = ex.sets.filter(x => tm ? setSecs(x) > 0 : (x.weight > 0 && x.reps > 0));
       if (!valid.length) return;
-      const maxW = Math.max(...valid.map(x => x.weight));
-      const avgR = Math.round(valid.reduce((a,x) => a+x.reps, 0) / valid.length);
+      const last = valid[valid.length-1];
+      const maxW = tm ? last.weight||0 : Math.max(...valid.map(x => x.weight));
+      const avgR = tm ? last.reps||0 : Math.round(valid.reduce((a,x) => a+x.reps, 0) / valid.length);
       if (!history[ex.name]) history[ex.name] = {};
-      history[ex.name][gymKey] = {w: maxW, r: avgR, s: valid.length, rest: ex.rest||60};
+      history[ex.name][gymKey] = {w: maxW, r: avgR, s: valid.length, rest: ex.rest||60, mode: tm?'time':undefined};
     });
   });
 
@@ -1752,12 +1794,12 @@ function getAllExerciseGroups() {
   return [...allNames].sort().map(name => {
     const plan = planMap[name];
     const variants = [];
-    if (plan) variants.push({gym: null, s: plan.s, r: plan.r, w: plan.w, rest: plan.rest, source: 'plan'});
+    if (plan) variants.push({gym: null, s: plan.s, r: plan.r, w: plan.w, rest: plan.rest, mode: plan.mode, source: 'plan'});
     if (history[name]) {
       Object.entries(history[name]).forEach(([gymId, data]) => {
         // For plan exercises, keep the plan's set count — only weight/reps come from history
         const sets = plan ? plan.s : data.s;
-        variants.push({gym: gymId, s: sets, r: data.r, w: data.w, rest: data.rest, source: 'history'});
+        variants.push({gym: gymId, s: sets, r: data.r, w: data.w, rest: data.rest, mode: plan ? plan.mode : data.mode, source: 'history'});
       });
     }
     return {name, variants};
@@ -1769,8 +1811,9 @@ function exGroupsCached() {
   return _exGroups;
 }
 
-function openAddEx(target) {
+function openAddEx(target, idx) {
   exLibTarget = target || 'session';
+  peReplaceIdx = (typeof idx === 'number') ? idx : null;
   if (exLibTarget === 'plan') closeModal('modal-planedit');
   exLibExpanded.clear();
   const inp = document.getElementById('exlib-search');
@@ -1786,12 +1829,26 @@ function openNewExFromLib() {
   exLibTarget = t;
   openNewEx();
 }
-function addExToPlan(name, s, r, w, rest) {
+function addExToPlan(name, s, r, w, rest, mode) {
   const list = planExercises(editPlanDay);
+  if (peReplaceIdx !== null && list[peReplaceIdx]) {
+    const ex = list[peReplaceIdx];
+    ex.name = name;
+    if (s) ex.s = s;
+    if (r != null) ex.r = r;
+    if (w != null) ex.w = w;
+    if (rest) ex.rest = rest;
+    ex.mode = mode || undefined;
+    setPlanExercises(editPlanDay, list);
+    _peReturnOpen = peReplaceIdx;
+    peReplaceIdx = null;
+    closeModal('modal-exlib');
+    return;
+  }
   if (list.some(e => e.name.toLowerCase() === String(name).toLowerCase())) {
     alert('"'+name+'" ist schon in Plan '+editPlanDay+'.');
   } else {
-    list.push({id:'p'+editPlanDay.toLowerCase()+'-'+Date.now(), name, s:s||3, r:r||10, w:w||0, rest:rest||60, section:null});
+    list.push({id:'p'+editPlanDay.toLowerCase()+'-'+Date.now(), name, s:s||3, r:r||10, w:w||0, rest:rest||60, mode:mode||undefined, section:null});
     setPlanExercises(editPlanDay, list);
   }
   closeModal('modal-exlib');
@@ -1827,8 +1884,9 @@ function renderExLib(query) {
           } else {
             pill = `<span style="font-size:9px;padding:2px 6px;border-radius:5px;background:var(--cream);color:var(--tl);font-weight:600;letter-spacing:.3px">Plan</span>`;
           }
-          const meta = `${v.s}×${v.r}${v.w ? ' · '+v.w+'kg' : ''}`;
-          return `<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 11px;background:var(--cream);border-radius:10px;cursor:pointer;gap:8px" onclick="addFromLibrary(null,'${safeName}',${v.s},${v.r},${v.w||0},${v.rest||60})">
+          const meta = v.mode==='time' ? `${v.s}× ${fmtSecs((v.w||0)*60+(v.r||0))} min`
+                                       : `${v.s}×${v.r}${v.w ? ' · '+v.w+'kg' : ''}`;
+          return `<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 11px;background:var(--cream);border-radius:10px;cursor:pointer;gap:8px" onclick="addFromLibrary(null,'${safeName}',${v.s},${v.r},${v.w||0},${v.rest||60},'${v.mode||''}')">
             <div style="display:flex;align-items:center;gap:7px">${pill}<span style="font-size:12px;color:var(--tm)">${meta}</span></div>
             <span style="font-size:16px;color:var(--rd);font-weight:300">+</span>
           </div>`;
@@ -1861,14 +1919,15 @@ function getLastGoalForExercise(name) {
   }
   return null;
 }
-function addFromLibrary(id, name, s, r, w, rest) {
-  if (exLibTarget === 'plan') { addExToPlan(name, s, r, w, rest); return; }
+function addFromLibrary(id, name, s, r, w, rest, mode) {
+  if (exLibTarget === 'plan') { addExToPlan(name, s, r, w, rest, mode); return; }
   const lastGoal = getLastGoalForExercise(name);
   const newEx = {
     id: 'custom-'+Date.now(),
     name,
     rest: rest||60,
     opt: false,
+    mode: mode||undefined,
     lastGoal,
     nextGoal: lastGoal ? {...lastGoal} : null,
     sets: Array.from({length:s||3}, ()=>({weight:w||0, reps:r||10, done:false}))
@@ -2074,10 +2133,10 @@ function renderDetail() {
         ${ex.sets.map((set,si)=>`
           <div class="edit-set-row">
             <span class="snr" style="font-size:11px;color:var(--tl);width:16px">${si+1}</span>
-            <input class="edit-inp" type="number" step="0.5" value="${set.weight||''}" placeholder="kg"
+            <input class="edit-inp" type="number" step="${isTime(ex)?'1':'0.5'}" value="${set.weight||''}" placeholder="${isTime(ex)?'Min':'kg'}"
               onchange="editSet('${s.id}',${ei},${si},'weight',this.value)">
-            <span class="sx">×</span>
-            <input class="edit-inp" type="number" value="${set.reps||''}" placeholder="reps"
+            <span class="sx">${isTime(ex)?':':'×'}</span>
+            <input class="edit-inp" type="number" value="${set.reps||''}" placeholder="${isTime(ex)?'Sek':'reps'}"
               onchange="editSet('${s.id}',${ei},${si},'reps',this.value)">
             <button class="done-btn${set.done?' done':''}" onclick="editToggleDone('${s.id}',${ei},${si},this)">${set.done?'✓':'○'}</button>
             <button class="del-set" onclick="editDelSet('${s.id}',${ei},${si})" title="Satz löschen">✕</button>
@@ -2095,7 +2154,7 @@ function renderDetail() {
     exHtml+=`<button class="del-session-btn" onclick="deleteSession('${s.id}')">🗑 Session löschen</button>`;
   } else {
     exHtml=s.exercises.map(ex=>{
-      const chips=ex.sets.map(set=>`<div class="det-chip${set.done?' done':''}">${set.weight?set.weight+'kg':'BW'} × ${set.reps}</div>`).join('');
+      const chips=ex.sets.map(set=>`<div class="det-chip${set.done?' done':''}">${isTime(ex)?fmtSecs(setSecs(set))+' min':(set.weight?set.weight+'kg':'BW')+' × '+set.reps}</div>`).join('');
       return `<div class="det-ex"><div class="det-exname">${ex.name}</div><div class="det-sets">${chips||'<span style="font-size:11px;color:var(--tl)">Keine Daten</span>'}</div></div>`;
     }).join('');
     exHtml+=`<button class="del-session-btn" onclick="deleteSession('${s.id}')">🗑 Session löschen</button>`;
@@ -2190,7 +2249,9 @@ function closeModal(id) {
   if (id==='modal-planedit') renderDayGrid();
   if (id==='modal-exlib' && exLibTarget==='plan') {
     exLibTarget = 'session';
-    peOpenIdx = null;
+    peReplaceIdx = null;
+    peOpenIdx = _peReturnOpen;
+    _peReturnOpen = null;
     openModal('modal-planedit');
     renderPlanEdit();
   }
