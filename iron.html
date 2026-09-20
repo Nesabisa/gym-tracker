@@ -422,6 +422,17 @@ body{font-family:'Barlow',sans-serif;background:var(--cream);color:var(--text);m
   </div>
 </div>
 
+<!-- MODAL: WERTE AUS ANDEREN STUDIOS -->
+<div class="modal-ov" id="modal-othergym">
+  <div class="msheet">
+    <div class="m-handle"></div>
+    <div class="m-title" id="og-title"></div>
+    <p style="font-size:13px;color:var(--tl);margin-bottom:14px">Diese Übung hast du auch hier gemacht:</p>
+    <div id="og-body"></div>
+    <button class="m-cancel" onclick="closeModal('modal-othergym')">Schließen</button>
+  </div>
+</div>
+
 <!-- MODAL: ADD TO PLAN -->
 <div class="modal-ov" id="modal-addtoplan">
   <div class="msheet">
@@ -1528,6 +1539,25 @@ function setSecs(s) { return (parseFloat(s.weight)||0)*60 + (parseInt(s.reps)||0
 function fmtSecs(secs) { const m=Math.floor(secs/60), r=Math.round(secs%60); return m+':'+String(r).padStart(2,'0'); }
 function setHasData(ex, s) { return isTime(ex) ? setSecs(s) > 0 : (s.weight > 0 || s.reps > 0); }
 
+// Letzte Werte derselben Übung in ANDEREN Studios
+function otherGymValues(name, currentGym) {
+  const cur = normGym(currentGym);
+  const out = {};
+  sessionsByDate().forEach(sess => {
+    const g = normGym(sess.gym);
+    if (g === cur) return;
+    sess.exercises.forEach(ex => {
+      if (ex.name !== name) return;
+      const used = ex.sets.filter(x => setHasData(ex, x));
+      if (!used.length) return;
+      const s0 = isTime(ex) ? (used.find(x=>x.done) || used[0])
+                            : (ex.sets.find(x=>x.done&&x.weight>0) || ex.sets.find(x=>x.weight>0) || used[0]);
+      out[g] = {gym:g, w:s0.weight||0, r:s0.reps||0, sets:used.length, date:sess.date, mode:ex.mode||undefined};
+    });
+  });
+  return Object.values(out);
+}
+
 function normGym(g) { return (g==='bs'||g==='bs1') ? 'bs1' : (g||'evo'); }
 
 // Letzte Werte (Gewicht, Wdh, Satzzahl) pro Übung, in 3 Stufen:
@@ -1577,6 +1607,7 @@ function renderExCard(idx, nc) {
   const hint = ex.lastW !== undefined
     ? `<div class="last-hint">↑ Letzte Session: <span>${ex.lastW}kg</span></div>` : '';
   const tm = isTime(ex);
+  const otherCount = otherGymValues(ex.name, session.gym).length;
   const rows = ex.sets.map((s,si)=>`
     <div class="set-row" id="sr-${idx}-${si}">
       <span class="snr">${si+1}</span>
@@ -1623,6 +1654,7 @@ function renderExCard(idx, nc) {
       <div class="ename" id="en-${idx}">${ex.name}</div>
       <div class="exc-btns">
         <button class="ic-btn" onclick="editRestInline(${idx})" title="Pause" style="font-size:10px;width:auto;padding:0 6px;">${ex.rest||60}s</button>
+        ${otherCount ? `<button class="ic-btn" onclick="showOtherGyms(${idx})" title="In ${otherCount} anderen Studio${otherCount!==1?'s':''} gemacht" style="font-size:13px;font-weight:600;width:auto;min-width:24px;padding:0 7px;color:var(--sd);background:var(--sl)">${otherCount}</button>` : ''}
         ${ex.id&&ex.id.startsWith('custom-') ? `<button class="ic-btn" onclick="openAddToPlan(${idx})" title="Zu Plan hinzufügen" style="font-size:12px">📌</button>` : ''}
         <button class="ic-btn" onclick="openReplace(${idx})" title="Ersetzen">✎</button>
         <button class="ic-btn del" onclick="delEx(${idx})" title="Löschen">🗑</button>
@@ -1660,6 +1692,39 @@ function confirmAddToPlan(day) {
     alert('✓ "'+ex.name+'" dauerhaft zu Plan '+day+' hinzugefügt!');
   }
   closeModal('modal-addtoplan');
+}
+
+let ogIdx = null;
+function showOtherGyms(idx) {
+  ogIdx = idx;
+  const ex = session.exercises[idx];
+  const list = otherGymValues(ex.name, session.gym);
+  document.getElementById('og-title').textContent = ex.name;
+  document.getElementById('og-body').innerHTML = list.map(o => {
+    const inf = gymInfo(o.gym);
+    const oTime = o.mode === 'time';
+    const val = oTime ? fmtSecs((o.w||0)*60+(o.r||0))+' min'
+                      : (o.w ? o.w+'kg' : 'BW')+' × '+o.r;
+    const passt = oTime === isTime(ex);
+    return `<div class="pe-row">
+      <span class="gym-pill ${inf.cls}" style="margin-left:0;flex-shrink:0">${inf.icon} ${inf.label}</span>
+      <div class="pe-name">
+        <div style="font-size:14px">${val}</div>
+        <div style="font-size:10px;color:var(--tl);margin-top:2px">${o.sets} ${o.sets===1?'Satz':'Sätze'} · ${fmtDate(o.date)}</div>
+      </div>
+      ${passt ? `<button class="pe-btn" onclick="adoptOtherGym('${o.gym}')">übernehmen</button>` : ''}
+    </div>`;
+  }).join('');
+  openModal('modal-othergym');
+}
+function adoptOtherGym(gym) {
+  const ex = session.exercises[ogIdx];
+  const o = otherGymValues(ex.name, session.gym).find(x => x.gym === gym);
+  if (!o) return;
+  ex.sets.forEach(st => { st.weight = o.w; st.reps = o.r; });
+  saveActive();
+  closeModal('modal-othergym');
+  reRenderEx(ogIdx);
 }
 
 function togCues(idx) {
