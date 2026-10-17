@@ -2153,6 +2153,22 @@ function addPause() {
 // FINISH
 function confirmFinish() {
   if (!session) return;
+
+  // Nur speichern, was wirklich gemacht wurde: Übungen ohne einen einzigen
+  // Haken fliegen raus, ebenso nicht abgehakte Sätze. Beim nächsten Training
+  // kommen sie wieder aus dem Plan.
+  let exs = JSON.parse(JSON.stringify(session.exercises));
+  const anyDone = exs.some(ex => ex.sets.some(st => st.done));
+  if (anyDone) {
+    const offen = exs.filter(ex => !ex.sets.some(st => st.done));
+    if (offen.length && !confirm(
+        offen.length + ' Übung' + (offen.length!==1?'en':'') + ' ohne Haken ' +
+        (offen.length!==1?'werden':'wird') + ' nicht gespeichert:\n\n' +
+        offen.map(e=>'· '+e.name).join('\n') + '\n\nTraining jetzt beenden?')) return;
+    exs = exs.filter(ex => ex.sets.some(st => st.done))
+             .map(ex => Object.assign({}, ex, {sets: ex.sets.filter(st => st.done)}));
+  }
+
   clearInterval(sessIv); sessIv = null;
   skipPause();
   session.duration = Math.floor((Date.now() - session.startTime) / 1000);
@@ -2163,7 +2179,7 @@ function confirmFinish() {
     day: session.day,
     gym: session.gym,
     duration: session.duration,
-    exercises: JSON.parse(JSON.stringify(session.exercises))
+    exercises: exs
   });
   saveDB();
   localStorage.removeItem('ironlog_active');
